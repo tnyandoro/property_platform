@@ -1,0 +1,2 @@
+class PropertyAssignment < ApplicationRecord
+end

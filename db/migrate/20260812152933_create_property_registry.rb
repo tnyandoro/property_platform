@@ -39,7 +39,7 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :properties,
-              [:organization_id, :name]
+              [ :organization_id, :name ]
 
     create_table :property_ownerships, id: :uuid do |t|
       t.references :organization,
@@ -69,10 +69,10 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :property_ownerships,
-              [:organization_id, :property_id]
+              [ :organization_id, :property_id ]
 
     add_index :property_ownerships,
-              [:organization_id, :party_id]
+              [ :organization_id, :party_id ]
 
     create_table :buildings, id: :uuid do |t|
       t.references :organization,
@@ -94,7 +94,7 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :buildings,
-              [:organization_id, :property_id]
+              [ :organization_id, :property_id ]
 
     create_table :units, id: :uuid do |t|
       t.references :organization,
@@ -124,7 +124,7 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :units,
-              [:organization_id, :building_id]
+              [ :organization_id, :building_id ]
 
     create_table :rooms, id: :uuid do |t|
       t.references :organization,
@@ -150,7 +150,7 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :rooms,
-              [:organization_id, :unit_id]
+              [ :organization_id, :unit_id ]
 
     create_table :property_items, id: :uuid do |t|
       t.references :organization,
@@ -181,10 +181,10 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :property_items,
-              [:organization_id, :room_id]
+              [ :organization_id, :room_id ]
 
     add_index :property_items,
-              [:organization_id, :item_type]
+              [ :organization_id, :item_type ]
 
     create_table :property_assignments, id: :uuid do |t|
       t.references :organization,
@@ -211,11 +211,11 @@ class CreatePropertyRegistry < ActiveRecord::Migration[8.1]
     end
 
     add_index :property_assignments,
-              [:organization_id, :property_id, :user_id],
+              [ :organization_id, :property_id, :user_id ],
               unique: true,
               name: "idx_property_assignments_scope"
 
     add_index :property_assignments,
-              [:organization_id, :property_id]
+              [ :organization_id, :property_id ]
   end
 end

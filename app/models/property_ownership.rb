@@ -1,0 +1,2 @@
+class PropertyOwnership < ApplicationRecord
+end
