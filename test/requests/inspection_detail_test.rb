@@ -117,4 +117,16 @@ class InspectionDetailTest < ActionDispatch::IntegrationTest
     assert_equal 3, item.reload.condition_score
     assert_equal "completed", @inspection.reload.status
   end
+
+  test "provisions a complete checklist when an inspection has no snapshots" do
+    post api_v1_login_path, params: { email: @user.email, password: "password123" }, as: :json
+    token = JSON.parse(response.body).fetch("token")
+
+    get api_v1_inspection_detail_path(@property, @inspection), headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal 1, payload.fetch("rooms").length
+    assert_operator payload.dig("rooms", 0, "items").length, :>, 1
+  end
 end

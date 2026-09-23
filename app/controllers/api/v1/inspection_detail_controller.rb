@@ -1,8 +1,12 @@
+require_dependency Rails.root.join("app/services/inspection_snapshot_builder").to_s
+
 module Api
   module V1
     class InspectionDetailController < PropertyResourcesController
       def show
         inspection = property.inspections.includes(inspection_rooms: :inspection_items).find(params[:inspection_id])
+        ::InspectionSnapshotBuilder.ensure!(inspection) if inspection.inspection_rooms.empty?
+        inspection.reload
 
         render json: {
           inspection: inspection_payload(inspection),

@@ -1,3 +1,5 @@
+require_dependency Rails.root.join("app/services/inspection_snapshot_builder").to_s
+
 module Api
   module V1
     class InspectionsController < PropertyResourcesController
@@ -21,6 +23,7 @@ module Api
         inspection.status = "draft"
 
         if inspection.save
+          ::InspectionSnapshotBuilder.ensure!(inspection)
           render json: inspection_payload(inspection), status: :created
         else
           render json: { errors: inspection.errors.full_messages }, status: :unprocessable_entity
