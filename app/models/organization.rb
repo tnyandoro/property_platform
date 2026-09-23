@@ -7,6 +7,8 @@ class Organization < ApplicationRecord
   has_many :units
   has_many :rooms
   has_many :property_items
+  has_many :item_types
+  has_many :inspections
   has_many :property_assignments
 
   validates :name, presence: true, uniqueness: true

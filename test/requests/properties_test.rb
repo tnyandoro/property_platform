@@ -19,7 +19,7 @@ class PropertiesTest < ActionDispatch::IntegrationTest
   end
 
   test "requires authentication" do
-    get properties_path
+    get api_v1_properties_path
 
     assert_response :unauthorized
   end
@@ -28,7 +28,7 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     authenticate_as(@user)
 
     assert_difference ["Property.count", "PropertyAssignment.count"], 1 do
-      post properties_path, params: {
+      post api_v1_properties_path, params: {
         property: { name: "Main Office", property_type: "commercial" }
       }, headers: @auth_headers, as: :json
     end
@@ -57,7 +57,7 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     )
 
     authenticate_as(@user)
-    get properties_path, headers: @auth_headers
+    get api_v1_properties_path, headers: @auth_headers
 
     assert_response :success
     names = JSON.parse(response.body).pluck("name")
@@ -74,7 +74,7 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     )
 
     authenticate_as(@user)
-    get property_path(property), headers: @auth_headers
+    get api_v1_property_path(property), headers: @auth_headers
 
     assert_response :not_found
   end
@@ -89,21 +89,85 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     )
     authenticate_as(@user)
 
-    patch property_path(property), params: {
+    patch api_v1_property_path(property), params: {
       property: { name: "New Name" }
     }, headers: @auth_headers, as: :json
     assert_response :success
     assert_equal "New Name", property.reload.name
 
-    delete property_path(property), headers: @auth_headers
+    delete api_v1_property_path(property), headers: @auth_headers
     assert_response :no_content
     assert_not Property.exists?(property.id)
   end
 
+  test "returns the property portfolio resources" do
+    property = assigned_property
+    authenticate_as(@user)
+
+    get api_v1_portfolio_path(property), headers: @auth_headers
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal property.id, payload.dig("property", "id")
+    assert payload.key?("buildings")
+    assert payload.key?("units")
+    assert payload.key?("rooms")
+    assert payload.key?("items")
+    assert payload.key?("ownership")
+    assert payload.key?("assignments")
+    assert payload.key?("inspections")
+  end
+
+  test "returns nested resources only for an assigned property" do
+    property = assigned_property
+    authenticate_as(@user)
+
+    get api_v1_buildings_path(property), headers: @auth_headers
+    assert_response :success
+
+    get api_v1_units_path(property), headers: @auth_headers
+    assert_response :success
+
+    get api_v1_inspections_path(property), headers: @auth_headers
+    assert_response :success
+
+    get api_v1_ownership_path(property), headers: @auth_headers
+    assert_response :success
+
+    get api_v1_assignments_path(property), headers: @auth_headers
+    assert_response :success
+  end
+
+  test "does not expose nested resources for another tenant" do
+    property = @other_organization.properties.create!(name: "Other Property", property_type: "residential")
+    property.property_assignments.create!(
+      organization: @other_organization,
+      user: @other_user,
+      assignment_type: "manager",
+      starts_at: 1.hour.ago
+    )
+    authenticate_as(@user)
+
+    get api_v1_portfolio_path(property), headers: @auth_headers
+
+    assert_response :not_found
+  end
+
   private
 
+  def assigned_property
+    property = @organization.properties.create!(name: "Assigned Property", property_type: "residential")
+    property.property_assignments.create!(
+      organization: @organization,
+      user: @user,
+      assignment_type: "manager",
+      starts_at: 1.hour.ago
+    )
+    property
+  end
+
   def authenticate_as(user)
-    post login_path, params: {
+    post api_v1_login_path, params: {
       email: user.email,
       password: "password123"
     }, as: :json

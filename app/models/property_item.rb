@@ -2,8 +2,10 @@ class PropertyItem < ApplicationRecord
   include TenantScoped
 
   belongs_to :room
-  has_one :unit, through: :room
-  has_one :property, through: :room
+  belongs_to :building
+  belongs_to :unit
+  belongs_to :property
+  belongs_to :item_type
 
-  validates :name, :item_type, presence: true
+  validates :name, presence: true
 end

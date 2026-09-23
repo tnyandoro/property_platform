@@ -8,6 +8,7 @@ class Property < ApplicationRecord
   has_many :property_ownerships
   has_many :property_assignments, dependent: :destroy
   has_many :assigned_users, through: :property_assignments, source: :user
+  has_many :inspections
 
   validates :name, :property_type, presence: true
   validates :cached_total_units, :cached_total_bedrooms,
