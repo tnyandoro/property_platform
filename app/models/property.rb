@@ -6,7 +6,7 @@ class Property < ApplicationRecord
   has_many :rooms, through: :units
   has_many :property_items, through: :rooms
   has_many :property_ownerships
-  has_many :property_assignments
+  has_many :property_assignments, dependent: :destroy
   has_many :assigned_users, through: :property_assignments, source: :user
 
   validates :name, :property_type, presence: true
