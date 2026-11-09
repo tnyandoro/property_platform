@@ -3,14 +3,16 @@ module Api
     class PortfolioController < PropertyResourcesController
       def show
         render json: {
-          property: property_payload,
-          buildings: property.buildings.map { |building| building_payload(building) },
-          units: property.units.map { |unit| unit_payload(unit) },
-          rooms: property.rooms.map { |room| room_payload(room) },
-          items: property.property_items.map { |item| item_payload(item) },
-          ownership: property.property_ownerships.includes(:party).map { |record| ownership_payload(record) },
+          property:    property_payload,
+          buildings:   property.buildings.map { |building| building_payload(building) },
+          units:       property.units.map { |unit| unit_payload(unit) },
+          rooms:       property.rooms.map { |room| room_payload(room) },
+          items:       property.property_items.map { |item| item_payload(item) },
+          ownership:   property.property_ownerships.includes(:party).map { |record| ownership_payload(record) },
           assignments: property.property_assignments.includes(:user).map { |record| assignment_payload(record) },
-          inspections: property.inspections.map { |inspection| inspection_payload(inspection) }
+          inspections: property.inspections.map { |inspection| inspection_payload(inspection) },
+          leases:      property.leases.includes(:tenant).map { |lease| lease_payload(lease) },
+          maintenance: property.maintenance_requests.order(reported_at: :desc).map { |req| maintenance_payload(req) }
         }
       end
 
@@ -24,7 +26,8 @@ module Api
           property_subtype: property.property_subtype,
           condition: property.condition,
           cached_total_units: property.cached_total_units,
-          cached_total_bedrooms: property.cached_total_bedrooms
+          cached_total_bedrooms: property.cached_total_bedrooms,
+          cover_photo_url: property.cover_photo_url
         }
       end
 
@@ -100,14 +103,40 @@ module Api
 
       def inspection_payload(inspection)
         {
-          id: inspection.id,
+          id:              inspection.id,
           inspection_type: inspection.inspection_type,
-          status: inspection.status,
-          scheduled_on: inspection.scheduled_on,
-          inspected_on: inspection.inspected_on,
-          locked_at: inspection.locked_at,
-          inspector_id: inspection.inspector_id,
-          notes: inspection.notes
+          status:          inspection.status,
+          scheduled_on:    inspection.scheduled_on,
+          inspected_on:    inspection.inspected_on,
+          locked_at:       inspection.locked_at,
+          inspector_id:    inspection.inspector_id,
+          notes:           inspection.notes
+        }
+      end
+
+      def lease_payload(lease)
+        {
+          id:            lease.id,
+          unit_id:       lease.unit_id,
+          status:        lease.status,
+          lease_type:    lease.lease_type,
+          start_date:    lease.start_date,
+          end_date:      lease.end_date,
+          monthly_rent:  lease.monthly_rent,
+          rent_currency: lease.rent_currency,
+          tenant_name:   lease.tenant&.name
+        }
+      end
+
+      def maintenance_payload(req)
+        {
+          id:          req.id,
+          title:       req.title,
+          category:    req.category,
+          priority:    req.priority,
+          status:      req.status,
+          reported_at: req.reported_at,
+          resolved_at: req.resolved_at
         }
       end
     end

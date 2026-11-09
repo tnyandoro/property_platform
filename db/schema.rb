@@ -10,10 +10,30 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_01_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
+
+  create_table "audit_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "action", null: false
+    t.uuid "actor_id"
+    t.uuid "auditable_id", null: false
+    t.string "auditable_type", null: false
+    t.jsonb "changes_payload", default: {}
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.datetime "occurred_at", null: false
+    t.uuid "organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.index ["actor_id"], name: "index_audit_logs_on_actor_id"
+    t.index ["occurred_at"], name: "index_audit_logs_on_occurred_at"
+    t.index ["organization_id", "actor_id"], name: "index_audit_logs_on_organization_id_and_actor_id"
+    t.index ["organization_id", "auditable_type", "auditable_id"], name: "idx_audit_logs_on_org_auditable"
+    t.index ["organization_id"], name: "index_audit_logs_on_organization_id"
+    t.check_constraint "action::text = ANY (ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'lock'::character varying, 'unlock'::character varying]::text[])", name: "audit_logs_action_check"
+  end
 
   create_table "buildings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "building_type"
@@ -26,6 +46,59 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
     t.index ["organization_id", "property_id"], name: "index_buildings_on_organization_id_and_property_id"
     t.index ["organization_id"], name: "index_buildings_on_organization_id"
     t.index ["property_id"], name: "index_buildings_on_property_id"
+  end
+
+  create_table "damage_assessments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "agreed_cost", precision: 12, scale: 2
+    t.uuid "assessed_by_id", null: false
+    t.date "assessed_on", null: false
+    t.datetime "created_at", null: false
+    t.text "description", null: false
+    t.decimal "estimated_cost", precision: 12, scale: 2
+    t.uuid "inspection_id"
+    t.uuid "inspection_item_id"
+    t.uuid "organization_id", null: false
+    t.uuid "property_id", null: false
+    t.text "resolution_notes"
+    t.string "responsibility", default: "unknown", null: false
+    t.string "severity", default: "minor", null: false
+    t.string "status", default: "open", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assessed_by_id"], name: "index_damage_assessments_on_assessed_by_id"
+    t.index ["inspection_id"], name: "index_damage_assessments_on_inspection_id"
+    t.index ["inspection_item_id"], name: "index_damage_assessments_on_inspection_item_id"
+    t.index ["organization_id", "property_id"], name: "index_damage_assessments_on_organization_id_and_property_id"
+    t.index ["organization_id", "status"], name: "index_damage_assessments_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_damage_assessments_on_organization_id"
+    t.index ["property_id"], name: "index_damage_assessments_on_property_id"
+    t.check_constraint "responsibility::text = ANY (ARRAY['landlord'::character varying, 'tenant'::character varying, 'shared'::character varying, 'unknown'::character varying]::text[])", name: "damage_assessments_responsibility_check"
+    t.check_constraint "severity::text = ANY (ARRAY['minor'::character varying, 'moderate'::character varying, 'severe'::character varying, 'critical'::character varying]::text[])", name: "damage_assessments_severity_check"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'under_review'::character varying, 'agreed'::character varying, 'disputed'::character varying, 'resolved'::character varying, 'written_off'::character varying]::text[])", name: "damage_assessments_status_check"
+  end
+
+  create_table "documents", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.uuid "damage_assessment_id"
+    t.text "description"
+    t.string "document_type", null: false
+    t.integer "file_size_bytes"
+    t.uuid "inspection_id"
+    t.uuid "lease_id"
+    t.uuid "maintenance_request_id"
+    t.uuid "organization_id", null: false
+    t.uuid "property_id"
+    t.string "storage_key", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "uploaded_by_id", null: false
+    t.index ["organization_id", "document_type"], name: "index_documents_on_organization_id_and_document_type"
+    t.index ["organization_id", "inspection_id"], name: "index_documents_on_organization_id_and_inspection_id"
+    t.index ["organization_id", "lease_id"], name: "index_documents_on_organization_id_and_lease_id"
+    t.index ["organization_id", "property_id"], name: "index_documents_on_organization_id_and_property_id"
+    t.index ["organization_id"], name: "index_documents_on_organization_id"
+    t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
+    t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR damage_assessment_id IS NOT NULL", name: "documents_must_have_parent"
   end
 
   create_table "inspection_amendments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -145,6 +218,68 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
     t.index ["organization_id", "category"], name: "index_item_types_on_organization_id_and_category"
     t.index ["organization_id", "name"], name: "index_item_types_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_item_types_on_organization_id"
+  end
+
+  create_table "leases", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.decimal "deposit_amount", precision: 15, scale: 2
+    t.date "end_date"
+    t.string "lease_type", default: "fixed_term", null: false
+    t.decimal "monthly_rent", precision: 15, scale: 2, null: false
+    t.integer "notice_period_days", default: 30
+    t.uuid "organization_id", null: false
+    t.uuid "property_id", null: false
+    t.string "rent_currency", default: "ZAR"
+    t.date "signed_date"
+    t.date "start_date", null: false
+    t.string "status", default: "draft", null: false
+    t.uuid "tenant_id", null: false
+    t.text "terms_summary"
+    t.uuid "unit_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "status"], name: "index_leases_on_organization_id_and_status"
+    t.index ["organization_id", "tenant_id"], name: "index_leases_on_organization_id_and_tenant_id"
+    t.index ["organization_id", "unit_id"], name: "index_leases_on_organization_id_and_unit_id"
+    t.index ["organization_id"], name: "index_leases_on_organization_id"
+    t.index ["property_id"], name: "index_leases_on_property_id"
+    t.index ["tenant_id"], name: "index_leases_on_tenant_id"
+    t.index ["unit_id"], name: "index_leases_on_unit_id"
+    t.check_constraint "lease_type::text = ANY (ARRAY['fixed_term'::character varying, 'month_to_month'::character varying, 'periodic'::character varying]::text[])", name: "leases_lease_type_check"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'active'::character varying, 'expired'::character varying, 'terminated'::character varying, 'cancelled'::character varying]::text[])", name: "leases_status_check"
+  end
+
+  create_table "maintenance_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "acknowledged_at"
+    t.decimal "actual_cost", precision: 12, scale: 2
+    t.uuid "assigned_to_id"
+    t.string "category"
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.decimal "estimated_cost", precision: 12, scale: 2
+    t.uuid "organization_id", null: false
+    t.string "priority", default: "medium", null: false
+    t.uuid "property_id", null: false
+    t.datetime "reported_at", null: false
+    t.uuid "reported_by_id", null: false
+    t.text "resolution_notes"
+    t.datetime "resolved_at"
+    t.uuid "room_id"
+    t.string "status", default: "open", null: false
+    t.string "title", null: false
+    t.uuid "unit_id"
+    t.datetime "updated_at", null: false
+    t.index ["assigned_to_id"], name: "index_maintenance_requests_on_assigned_to_id"
+    t.index ["organization_id", "priority"], name: "index_maintenance_requests_on_organization_id_and_priority"
+    t.index ["organization_id", "property_id"], name: "index_maintenance_requests_on_organization_id_and_property_id"
+    t.index ["organization_id", "status"], name: "index_maintenance_requests_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_maintenance_requests_on_organization_id"
+    t.index ["property_id"], name: "index_maintenance_requests_on_property_id"
+    t.index ["reported_by_id"], name: "index_maintenance_requests_on_reported_by_id"
+    t.index ["room_id"], name: "index_maintenance_requests_on_room_id"
+    t.index ["unit_id"], name: "index_maintenance_requests_on_unit_id"
+    t.check_constraint "priority::text = ANY (ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'urgent'::character varying]::text[])", name: "maintenance_requests_priority_check"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'acknowledged'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying, 'cancelled'::character varying]::text[])", name: "maintenance_requests_status_check"
   end
 
   create_table "organizations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -324,8 +459,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
     t.index ["organization_id"], name: "index_users_on_organization_id"
   end
 
+  add_foreign_key "audit_logs", "organizations"
+  add_foreign_key "audit_logs", "users", column: "actor_id"
   add_foreign_key "buildings", "organizations"
   add_foreign_key "buildings", "properties"
+  add_foreign_key "damage_assessments", "inspection_items"
+  add_foreign_key "damage_assessments", "inspections"
+  add_foreign_key "damage_assessments", "organizations"
+  add_foreign_key "damage_assessments", "properties"
+  add_foreign_key "damage_assessments", "users", column: "assessed_by_id"
+  add_foreign_key "documents", "organizations"
+  add_foreign_key "documents", "users", column: "uploaded_by_id"
   add_foreign_key "inspection_amendments", "inspection_items"
   add_foreign_key "inspection_amendments", "inspections"
   add_foreign_key "inspection_amendments", "organizations"
@@ -345,6 +489,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
   add_foreign_key "inspections", "properties"
   add_foreign_key "inspections", "users", column: "inspector_id"
   add_foreign_key "item_types", "organizations"
+  add_foreign_key "leases", "organizations"
+  add_foreign_key "leases", "parties", column: "tenant_id"
+  add_foreign_key "leases", "properties"
+  add_foreign_key "leases", "units"
+  add_foreign_key "maintenance_requests", "organizations"
+  add_foreign_key "maintenance_requests", "properties"
+  add_foreign_key "maintenance_requests", "rooms"
+  add_foreign_key "maintenance_requests", "units"
+  add_foreign_key "maintenance_requests", "users", column: "assigned_to_id"
+  add_foreign_key "maintenance_requests", "users", column: "reported_by_id"
   add_foreign_key "parties", "organizations"
   add_foreign_key "properties", "organizations"
   add_foreign_key "property_assignments", "organizations"

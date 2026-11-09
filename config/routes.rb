@@ -11,15 +11,18 @@ Rails.application.routes.draw do
       delete "logout", to: "sessions#destroy"
       resources :properties
       scope "properties/:property_id" do
-        get "portfolio", to: "portfolio#show"
-        get "buildings", to: "buildings#index"
-        get "units", to: "units#index"
-        get "inspections", to: "inspections#index"
-        post "inspections", to: "inspections#create"
-        get "inspections/:inspection_id", to: "inspection_detail#show", as: :inspection_detail
-        patch "inspections/:inspection_id", to: "inspection_detail#update"
-        get "ownership", to: "ownership#index"
-        get "assignments", to: "assignments#index"
+        post "photos",       to: "property_photos#create"
+        get  "portfolio",    to: "portfolio#show"
+        get  "buildings",    to: "buildings#index"
+        get  "units",        to: "units#index"
+        get  "inspections",  to: "inspections#index"
+        post "inspections",  to: "inspections#create"
+        get  "inspections/:inspection_id",   to: "inspection_detail#show",   as: :inspection_detail
+        patch "inspections/:inspection_id",  to: "inspection_detail#update"
+        get  "inspections/:inspection_id/photos", to: "inspection_photos#index",  as: :inspection_photos
+        post "inspections/:inspection_id/photos", to: "inspection_photos#create"
+        get  "ownership",    to: "ownership#index"
+        get  "assignments",  to: "assignments#index"
       end
     end
   end

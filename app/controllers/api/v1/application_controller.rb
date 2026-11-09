@@ -6,6 +6,18 @@ module Api
 
       private
 
+      # Instantiates the matching Policy class and calls the given query.
+      # Raises 403 if the policy returns false.
+      def authorize!(record, query)
+        policy_class = "#{record.class.name}Policy".constantize
+        policy       = policy_class.new(current_user, record)
+
+        unless policy.public_send(query)
+          render json: { error: "Not authorized" }, status: :forbidden
+          raise ActiveRecord::Rollback
+        end
+      end
+
       def render_not_found
         render json: { error: "Resource not found" }, status: :not_found
       end

@@ -15,6 +15,7 @@ module Api
 
       def create
         property = current_organization.properties.new(property_params)
+        authorize!(property, :create?)
 
         Property.transaction do
           property.save!
@@ -32,6 +33,9 @@ module Api
       end
 
       def update
+        authorize!(@property, :update?)
+        return if performed?
+
         if @property.update(property_params)
           render json: property_payload(@property)
         else
@@ -40,6 +44,9 @@ module Api
       end
 
       def destroy
+        authorize!(@property, :destroy?)
+        return if performed?
+
         @property.destroy!
         head :no_content
       end
@@ -69,6 +76,7 @@ module Api
           current_value: property.current_value,
           cached_total_units: property.cached_total_units,
           cached_total_bedrooms: property.cached_total_bedrooms,
+          cover_photo_url: property.cover_photo_url,
           created_at: property.created_at,
           updated_at: property.updated_at
         }
