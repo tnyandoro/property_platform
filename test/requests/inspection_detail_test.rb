@@ -54,7 +54,8 @@ class InspectionDetailTest < ActionDispatch::IntegrationTest
       item_name: "Sofa",
       item_type_name: "Furniture",
       condition: "good",
-      condition_score: 5
+      condition_score: 5,
+      notes: "Light scuffs on the left arm."
     )
 
     post api_v1_login_path, params: { email: @user.email, password: "password123" }, as: :json
@@ -66,6 +67,7 @@ class InspectionDetailTest < ActionDispatch::IntegrationTest
     assert_equal "routine", payload.dig("inspection", "inspection_type")
     assert_equal "Living Room", payload.dig("rooms", 0, "room_name")
     assert_equal 5, payload.dig("rooms", 0, "items", 0, "condition_score")
+    assert_equal "Light scuffs on the left arm.", payload.dig("rooms", 0, "items", 0, "notes")
   end
 
   test "schedules a draft inspection for an assigned property" do
@@ -108,13 +110,14 @@ class InspectionDetailTest < ActionDispatch::IntegrationTest
     patch api_v1_inspection_detail_path(@property, @inspection),
           params: {
             status: "completed",
-            rooms: [{ id: room.id, items: [{ id: item.id, condition: "fair", condition_score: 3 }] }]
+            rooms: [{ id: room.id, items: [{ id: item.id, condition: "fair", condition_score: 3, notes: "Small chip near the lower edge." }] }]
           },
           headers: { "Authorization" => "Bearer #{token}" },
           as: :json
 
     assert_response :success
     assert_equal 3, item.reload.condition_score
+    assert_equal "Small chip near the lower edge.", item.notes
     assert_equal "completed", @inspection.reload.status
   end
 

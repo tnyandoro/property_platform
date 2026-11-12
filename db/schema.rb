@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -116,6 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
     t.uuid "maintenance_request_id"
     t.uuid "organization_id", null: false
     t.uuid "property_id"
+    t.uuid "property_ownership_id"
     t.string "storage_key", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
@@ -124,9 +125,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
     t.index ["organization_id", "inspection_id"], name: "index_documents_on_organization_id_and_inspection_id"
     t.index ["organization_id", "lease_id"], name: "index_documents_on_organization_id_and_lease_id"
     t.index ["organization_id", "property_id"], name: "index_documents_on_organization_id_and_property_id"
+    t.index ["organization_id", "property_ownership_id"], name: "index_documents_on_org_and_property_ownership"
     t.index ["organization_id"], name: "index_documents_on_organization_id"
+    t.index ["property_ownership_id"], name: "index_documents_on_property_ownership_id"
     t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
-    t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR damage_assessment_id IS NOT NULL", name: "documents_must_have_parent"
+    t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR damage_assessment_id IS NOT NULL OR property_ownership_id IS NOT NULL", name: "documents_must_have_parent"
   end
 
   create_table "inspection_amendments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -399,7 +402,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
   end
 
   create_table "property_ownerships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "conveyancer"
     t.datetime "created_at", null: false
+    t.string "currency"
     t.date "end_date"
     t.text "notes"
     t.uuid "organization_id", null: false
@@ -407,15 +412,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
     t.uuid "party_id", null: false
     t.uuid "property_id", null: false
     t.date "start_date", null: false
+    t.string "transfer_reference"
     t.string "transfer_type"
     t.decimal "transfer_value", precision: 15, scale: 2
     t.datetime "updated_at", null: false
+    t.decimal "valuation_at_transfer", precision: 15, scale: 2
+    t.string "verification_status", default: "unverified", null: false
+    t.datetime "verified_at"
+    t.uuid "verified_by_id"
     t.index ["organization_id", "party_id"], name: "index_property_ownerships_on_organization_id_and_party_id"
     t.index ["organization_id", "property_id"], name: "index_property_ownerships_on_organization_id_and_property_id"
+    t.index ["organization_id", "transfer_reference"], name: "index_property_ownerships_on_org_and_transfer_reference"
     t.index ["organization_id"], name: "index_property_ownerships_on_organization_id"
     t.index ["party_id"], name: "index_property_ownerships_on_party_id"
+    t.index ["property_id", "start_date"], name: "index_property_ownerships_on_property_and_start_date"
     t.index ["property_id"], name: "index_property_ownerships_on_property_id"
+    t.index ["verified_by_id"], name: "index_property_ownerships_on_verified_by_id"
     t.check_constraint "ownership_percentage > 0::numeric AND ownership_percentage <= 100::numeric", name: "property_ownerships_ownership_percentage_range"
+    t.check_constraint "verification_status::text = ANY (ARRAY['unverified'::character varying, 'pending_review'::character varying, 'verified'::character varying]::text[])", name: "property_ownerships_verification_status_check"
   end
 
   create_table "rooms", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -500,6 +514,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
   add_foreign_key "damage_assessments", "properties"
   add_foreign_key "damage_assessments", "users", column: "assessed_by_id"
   add_foreign_key "documents", "organizations"
+  add_foreign_key "documents", "property_ownerships"
   add_foreign_key "documents", "users", column: "uploaded_by_id"
   add_foreign_key "inspection_amendments", "inspection_items"
   add_foreign_key "inspection_amendments", "inspections"
@@ -544,6 +559,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_110000) do
   add_foreign_key "property_ownerships", "organizations"
   add_foreign_key "property_ownerships", "parties"
   add_foreign_key "property_ownerships", "properties"
+  add_foreign_key "property_ownerships", "users", column: "verified_by_id"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "rooms", "organizations"
   add_foreign_key "rooms", "properties"

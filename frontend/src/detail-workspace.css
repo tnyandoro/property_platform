@@ -38,3 +38,139 @@
 .schedule-button { width: 100%; margin-bottom: 12px; }.modal textarea { resize: vertical; min-height: 90px; border: 1px solid #d7d0c4; background: #f4f0e8; border-radius: 3px; outline: 0; color: #26322d; padding: 12px; font-family: 'Manrope', sans-serif; font-size: 12px; }.modal textarea:focus { border-color: #9eaf42; box-shadow: 0 0 0 3px #d1e15a44; }
 .inspection-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 0; border: 0; border-bottom: 1px solid #e1dbd0; background: transparent; color: inherit; text-align: left; }.inspection-row > div { flex: 1; }.inspection-row strong, .inspection-row span { display: block; }.inspection-row strong { color: #26322d; font-size: 12px; text-transform: capitalize; }.inspection-row span { color: #87938a; font-size: 10px; margin-top: 4px; }.inspection-row small { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; }.inspection-review { position: absolute; inset: 0 0 0 auto; width: min(720px, 100%); background: #faf8f3; box-shadow: -15px 0 35px #1f302a16; overflow-y: auto; animation: slide-in .25s ease-out; }.inspection-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #e1dbd0; margin: 25px 34px; }.inspection-summary div { background: #faf8f3; padding: 16px 13px; }.inspection-summary span, .inspection-summary strong { display: block; }.inspection-summary span { color: #87938a; font-size: 9px; }.inspection-summary strong { color: #26322d; font-family: 'DM Mono', monospace; font-size: 22px; margin-top: 7px; }.inspection-summary small { color: #87938a; font-size: 10px; }.inspection-body { padding: 0 34px 42px; }.review-room { border-top: 1px solid #e1dbd0; padding: 21px 0 4px; }.review-room-heading { display: flex; justify-content: space-between; align-items: flex-start; }.review-room-heading h3 { color: #26322d; font-size: 18px; letter-spacing: -.05em; margin: 0; text-transform: capitalize; }.review-room-heading > span { color: #87938a; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; }.review-item { display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid #eae4d9; padding: 13px 0; }.review-item strong, .review-item span { display: block; }.review-item strong { color: #26322d; font-size: 11px; }.review-item span { color: #87938a; font-size: 10px; margin-top: 4px; }.score { display: grid; place-items: center; width: 39px; height: 25px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 10px; background: #e7edd0; color: #687b48; }.score-1, .score-2 { background: #f5dfd5; color: #874f3c; }.score-3 { background: #f3ead0; color: #9a7a3c; }
 @media (max-width: 800px) { .detail-header, .detail-tabs, .detail-content { padding-left: 22px; padding-right: 22px; }.detail-header h2 { font-size: 25px; }.detail-metrics { grid-template-columns: repeat(2, 1fr); } }
+.form-item { display: block; }
+.form-item-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.inspection-item-description { display: grid; gap: 6px; margin-top: 12px; color: #697a70; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.inspection-item-description > span { color: inherit; font-size: inherit; margin-top: 0; text-transform: inherit; letter-spacing: inherit; }
+.inspection-item-description textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 64px; border: 1px solid #d7d0c4; background: #f4f0e8; border-radius: 3px; outline: 0; color: #26322d; padding: 10px; font-family: 'Manrope', sans-serif; font-size: 12px; text-transform: none; }
+.inspection-item-description textarea:focus { border-color: #9eaf42; box-shadow: 0 0 0 3px #d1e15a44; }
+.review-item-copy { flex: 1; }
+.review-item-description, .review-item-damage { color: #697a70; font-size: 11px; line-height: 1.5; margin: 7px 0 0; white-space: pre-wrap; }
+.review-item-damage { color: #874f3c; }
+.review-item { align-items: flex-start; width: 100%; border-top: 0; border-left: 0; border-right: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.review-item:hover { background: #f1eee6; }
+.review-item .review-thumbnails { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.review-thumbnails img { width: 52px; height: 52px; object-fit: cover; border: 1px solid #d7d0c4; border-radius: 3px; }
+.inspection-photo-status, .inspection-photo-error { font-size: 11px; line-height: 1.5; margin: 0 0 14px; }
+.inspection-photo-status { color: #87938a; }
+.inspection-photo-error { color: #874f3c; background: #f5dfd5; padding: 10px; }
+.inspection-item-backdrop { position: fixed; z-index: 20; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: #1f302a99; }
+.inspection-item-report { width: min(680px, 100%); max-height: 90vh; overflow-y: auto; background: #faf8f3; box-shadow: 0 20px 60px #1f302a44; }
+.inspection-item-report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 24px 28px 20px; border-bottom: 1px solid #e1dbd0; }
+.inspection-item-report-header h2 { color: #1f302a; font-size: 25px; letter-spacing: -.06em; margin: 0; }
+.inspection-item-report-header .eyebrow { margin: 0 0 8px; }
+.inspection-item-report-body { padding: 22px 28px 30px; }
+.inspection-item-result { display: flex; gap: 1px; margin-bottom: 22px; background: #e1dbd0; }
+.inspection-item-result > div { flex: 1; background: #f4f0e8; padding: 14px; }
+.inspection-item-result span, .inspection-item-result strong, .inspection-report-extra span, .inspection-report-extra strong { display: block; }
+.inspection-item-result span, .inspection-report-extra span { color: #87938a; font-size: 9px; text-transform: uppercase; }
+.inspection-item-result strong, .inspection-report-extra strong { color: #26322d; font-size: 13px; margin-top: 6px; text-transform: capitalize; }
+.inspection-report-field { margin-top: 20px; }
+.inspection-report-field h3 { color: #26322d; font-size: 12px; margin: 0 0 7px; }
+.inspection-report-field p { color: #697a70; font-size: 11px; line-height: 1.6; margin: 0; white-space: pre-wrap; }
+.inspection-report-extra { display: flex; gap: 28px; }
+.inspection-report-images { display: grid; gap: 14px; }
+.inspection-report-images figure { margin: 0; }
+.inspection-report-images img { display: block; width: 100%; max-height: 480px; object-fit: contain; background: #e9e5dc; }
+.inspection-report-images figcaption { color: #87938a; font-size: 10px; margin-top: 6px; }
+@media (max-width: 600px) {
+  .inspection-item-backdrop { padding: 12px; }
+  .inspection-item-report-header, .inspection-item-report-body { padding-left: 18px; padding-right: 18px; }
+}
+.ownership-workspace { display: grid; gap: 20px; }
+.ownership-workspace-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.ownership-workspace-heading h3 { color: #26322d; font-size: 19px; line-height: 1.2; letter-spacing: -.05em; margin: 0 0 10px; }
+.ownership-workspace-heading strong { color: #26322d; font-size: 13px; }
+.ownership-workspace-heading > div:first-child > p:last-child { color: #87938a; font-size: 11px; line-height: 1.5; margin: 5px 0 0; }
+.ownership-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ownership-actions button, .ownership-entry-actions button { white-space: nowrap; }
+.ownership-message { margin: 0; }
+.ownership-notice { color: #52643c; background: #e7edd0; font-size: 11px; padding: 11px 13px; }
+.ownership-loading { min-height: 50px; padding: 10px; }
+.ownership-current { background: #e7edd0; padding: 18px; }
+.ownership-current-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ownership-current-heading .eyebrow { color: #687b48; margin-bottom: 5px; }
+.ownership-current-heading h4, .ownership-timeline-heading h4 { color: #26322d; font-size: 15px; margin: 0; }
+.ownership-state, .ownership-verification-badge { border-radius: 20px; font-size: 9px; font-weight: 700; padding: 5px 9px; text-transform: uppercase; white-space: nowrap; }
+.ownership-state.current, .ownership-verification-badge.verified { color: #52643c; background: #d3e2aa; }
+.ownership-state.unavailable, .ownership-verification-badge.unverified { color: #7e6a46; background: #f3ead0; }
+.ownership-verification-badge.pending_review { color: #8a6431; background: #f2e4c4; }
+.ownership-owner-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ownership-owner-chip { display: grid; gap: 3px; border: 1px solid #cdd7a9; background: #f4f6e8; padding: 9px 11px; }
+.ownership-owner-chip strong { color: #26322d; font-size: 11px; }
+.ownership-owner-chip span, .ownership-empty-copy { color: #697a4b; font-size: 10px; margin: 0; }
+.ownership-disclaimer { color: #87938a; font-size: 10px; line-height: 1.5; margin: -10px 0 0; }
+.ownership-warning { color: #874f3c; background: #f5dfd5; font-size: 10px; line-height: 1.5; margin: 12px 0 0; padding: 9px 11px; }
+.ownership-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #e1dbd0; border: 1px solid #e1dbd0; }
+.ownership-stat { min-width: 0; background: #faf8f3; padding: 13px; }
+.ownership-stat span, .ownership-stat small { display: block; color: #87938a; font-size: 9px; line-height: 1.5; }
+.ownership-stat strong { display: block; color: #26322d; font-size: 14px; line-height: 1.4; margin-top: 7px; overflow-wrap: anywhere; }
+.ownership-stat small { margin-top: 4px; }
+.ownership-upcoming { display: grid; gap: 4px; border-left: 3px solid #b18a3d; background: #f3ead0; color: #806431; font-size: 10px; line-height: 1.5; padding: 11px 13px; }
+.ownership-timeline-heading { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid #e1dbd0; padding-bottom: 11px; }
+.ownership-timeline-heading .eyebrow { margin-bottom: 5px; }
+.ownership-timeline-heading > span { color: #87938a; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; }
+.ownership-timeline { list-style: none; margin: 0; padding: 4px 0 4px 28px; position: relative; }
+.ownership-timeline::before { content: ''; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 1px; background: #d7d0c4; }
+.ownership-entry { border-bottom: 1px solid #eae4d9; padding: 12px 0; position: relative; }
+.ownership-entry details > summary { align-items: flex-start; cursor: pointer; display: flex; gap: 12px; justify-content: space-between; list-style: none; }
+.ownership-entry details > summary::-webkit-details-marker { display: none; }
+.ownership-timeline-dot { background: #b7c3a7; border: 3px solid #faf8f3; border-radius: 50%; height: 17px; left: -27px; position: absolute; top: 14px; width: 17px; }
+.ownership-entry-current .ownership-timeline-dot { background: #8ea23d; box-shadow: 0 0 0 3px #dce8b7; }
+.ownership-entry-upcoming .ownership-timeline-dot { background: #b18a3d; }
+.ownership-entry-summary { display: grid; flex: 1; gap: 4px; min-width: 0; }
+.ownership-entry-summary strong { color: #26322d; font-size: 12px; }
+.ownership-entry-summary > span { color: #87938a; font-size: 10px; line-height: 1.5; }
+.ownership-entry-summary .ownership-entry-kicker { color: #687b48; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; }
+.ownership-entry-summary .ownership-entry-price { color: #59685f; }
+.ownership-entry-historical .ownership-entry-kicker { color: #87938a; }
+.ownership-entry-details { padding: 16px 0 4px; }
+.ownership-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: #e1dbd0; border: 1px solid #e1dbd0; }
+.ownership-detail-grid > div { background: #f4f0e8; min-width: 0; padding: 10px; }
+.ownership-detail-grid span, .ownership-record-notes > span { color: #87938a; display: block; font-size: 9px; text-transform: uppercase; }
+.ownership-detail-grid strong { color: #26322d; display: block; font-size: 10px; line-height: 1.5; margin-top: 5px; overflow-wrap: anywhere; text-transform: capitalize; }
+.ownership-record-notes { margin-top: 15px; }
+.ownership-record-notes p { color: #697a70; font-size: 11px; line-height: 1.5; margin: 5px 0 0; white-space: pre-wrap; }
+.ownership-verification-control { color: #697a70; display: grid; font-size: 10px; gap: 6px; margin: 15px 0; max-width: 280px; }
+.ownership-verification-control select { background: #f4f0e8; border: 1px solid #d7d0c4; border-radius: 3px; color: #26322d; padding: 8px; }
+.ownership-entry-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+.ownership-documents { border-top: 1px solid #e1dbd0; margin-top: 15px; padding-top: 14px; }
+.ownership-documents h4 { align-items: center; color: #26322d; display: flex; font-size: 11px; gap: 7px; margin: 0 0 9px; }
+.ownership-documents > p { color: #87938a; font-size: 10px; margin: 0 0 10px; }
+.ownership-documents ul { display: grid; gap: 8px; list-style: none; margin: 0 0 14px; padding: 0; }
+.ownership-documents li { display: grid; gap: 3px; }
+.ownership-documents a, .ownership-documents li > span { color: #52643c; font-size: 11px; overflow-wrap: anywhere; }
+.ownership-documents li small { color: #87938a; font-size: 9px; }
+.ownership-document-form { background: #f4f0e8; padding: 12px; }
+.ownership-document-form .form-grid { gap: 10px; }
+.ownership-document-form label { margin-bottom: 10px; }
+.ownership-document-form input[type="file"] { font-size: 10px; padding: 8px; }
+.ownership-document-form .secondary-button { font-size: 10px; padding: 9px 11px; }
+.ownership-modal { display: flex; flex-direction: column; max-height: calc(100vh - 40px); overflow: hidden; width: min(700px, 100%); }
+.ownership-modal .modal-header { flex: 0 0 auto; }
+.ownership-modal .modal-header h2 { margin-bottom: 16px; }
+.ownership-form-scroll { flex: 1 1 auto; overflow-y: auto; padding: 3px 4px 0 0; }
+.ownership-form-note { background: #e7edd0; color: #596b42; font-size: 10px; line-height: 1.5; margin: 0 0 16px; padding: 10px 12px; }
+.ownership-required { color: #874f3c; font-size: 9px; margin-left: 5px; }
+.ownership-field-help { color: #87938a; display: block; font-size: 9px; line-height: 1.5; margin-top: 5px; text-transform: none; }
+.ownership-modal .ownership-confirm { align-items: flex-start; color: #59685f; display: flex; font-family: 'Manrope', sans-serif; font-size: 10px; gap: 9px; letter-spacing: 0; line-height: 1.5; margin: 15px 0; text-transform: none; }
+.ownership-modal .ownership-confirm input { accent-color: #91a33c; flex: 0 0 auto; margin: 1px 0 0; padding: 0; }
+.ownership-incoming-heading { align-items: center; display: flex; justify-content: space-between; margin: 15px 0 10px; }
+.ownership-incoming-heading h3 { color: #26322d; font-size: 13px; margin: 0; }
+.ownership-incoming-heading button { font-size: 10px; padding: 8px 10px; }
+.ownership-owner-draft { background: #f4f0e8; border-left: 2px solid #a5b74c; margin-bottom: 12px; padding: 12px; }
+.ownership-owner-draft-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 10px; }
+.ownership-owner-draft-heading strong { color: #26322d; font-size: 11px; }
+.ownership-remove-owner { background: transparent; border: 0; color: #874f3c; cursor: pointer; font-size: 10px; }
+.ownership-owner-draft label { margin-bottom: 10px; }
+.ownership-share-summary { background: #e7edd0; color: #596b42; font-size: 10px; padding: 9px 11px; }
+.ownership-transfer-modal .modal-actions { flex: 0 0 auto; }
+.ownership-close-modal { width: min(520px, 100%); }
+@media (max-width: 700px) {
+  .ownership-workspace-heading { flex-direction: column; }
+  .ownership-actions { width: 100%; }
+  .ownership-actions button { flex: 1; }
+  .ownership-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ownership-entry details > summary { gap: 7px; }
+  .ownership-verification-badge { font-size: 8px; padding: 4px 6px; }
+}

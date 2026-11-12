@@ -74,6 +74,7 @@ module Api
             country: property.country
           },
           current_value: property.current_value,
+          original_value: property.original_value,
           cached_total_units: property.cached_total_units,
           cached_total_bedrooms: property.cached_total_bedrooms,
           cover_photo_url: property.cover_photo_url,

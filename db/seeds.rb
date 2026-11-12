@@ -36,6 +36,46 @@ property.property_assignments.find_or_create_by!(user: user) do |assignment|
 	)
 end
 
+previous_owner = organization.parties.find_or_create_by!(name: "Admire Smith", party_type: "individual")
+current_owner = organization.parties.find_or_create_by!(name: "Tendai Nyandoro", party_type: "individual")
+
+previous_ownership = property.property_ownerships.find_or_initialize_by(
+	organization: organization,
+	party: previous_owner,
+	start_date: Date.new(2024, 1, 1)
+)
+previous_ownership.assign_attributes(
+	ownership_percentage: 100,
+	end_date: Date.new(2025, 1, 1),
+	transfer_type: "sale_purchase",
+	currency: "USD",
+	transfer_value: nil,
+	valuation_at_transfer: nil,
+	verification_status: "unverified",
+	verified_at: nil,
+	verified_by: nil,
+	notes: "Demonstration ownership history; transaction value not recorded."
+)
+previous_ownership.save!
+
+current_ownership = property.property_ownerships.find_or_initialize_by(
+	organization: organization,
+	party: current_owner,
+	start_date: Date.new(2025, 1, 1)
+)
+current_ownership.assign_attributes(
+	ownership_percentage: 100,
+	transfer_type: "sale_purchase",
+	currency: "USD",
+	transfer_value: nil,
+	valuation_at_transfer: nil,
+	verification_status: "unverified",
+	verified_at: nil,
+	verified_by: nil,
+	notes: "Demonstration current ownership; transaction value not recorded."
+)
+current_ownership.save!
+
 building = property.buildings.find_or_create_by!(name: "Main House") do |record|
 	record.assign_attributes(
 		organization: organization,
@@ -172,4 +212,4 @@ seed_snapshot.call(move_in_inspection)
 
 property.update!(cached_total_units: property.units.count, cached_total_bedrooms: property.units.sum(:bedrooms))
 
-puts "Seeded #{organization.name} with user #{user.email}, property #{property.name}, and move-in inspection #{move_in_inspection.id}."
+puts "Seeded #{organization.name} with user #{user.email}, property #{property.name}, ownership history Admire Smith -> Tendai Nyandoro, and move-in inspection #{move_in_inspection.id}."

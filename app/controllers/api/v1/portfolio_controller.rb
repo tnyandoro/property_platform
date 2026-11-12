@@ -1,6 +1,8 @@
 module Api
   module V1
     class PortfolioController < PropertyResourcesController
+      include OwnershipSerialization
+
       def show
         render json: {
           property:    property_payload,
@@ -8,7 +10,10 @@ module Api
           units:       property.units.map { |unit| unit_payload(unit) },
           rooms:       property.rooms.map { |room| room_payload(room) },
           items:       property.property_items.map { |item| item_payload(item) },
-          ownership:   property.property_ownerships.includes(:party).map { |record| ownership_payload(record) },
+          ownership:   property.property_ownerships
+            .includes(:party, :verified_by, :documents)
+            .chronological
+            .map { |record| ownership_payload(record) },
           assignments: property.property_assignments.includes(:user).map { |record| assignment_payload(record) },
           inspections: property.inspections.map { |inspection| inspection_payload(inspection) },
           leases:      property.leases.includes(:tenant).map { |lease| lease_payload(lease) },
@@ -25,6 +30,8 @@ module Api
           property_type: property.property_type,
           property_subtype: property.property_subtype,
           condition: property.condition,
+          current_value: property.current_value,
+          original_value: property.original_value,
           cached_total_units: property.cached_total_units,
           cached_total_bedrooms: property.cached_total_bedrooms,
           cover_photo_url: property.cover_photo_url
@@ -75,19 +82,6 @@ module Api
           serial_number: item.serial_number,
           installed_at: item.installed_at,
           description: item.description
-        }
-      end
-
-      def ownership_payload(record)
-        {
-          id: record.id,
-          party: { id: record.party.id, name: record.party.name, party_type: record.party.party_type },
-          ownership_percentage: record.ownership_percentage,
-          start_date: record.start_date,
-          end_date: record.end_date,
-          transfer_type: record.transfer_type,
-          transfer_value: record.transfer_value,
-          notes: record.notes
         }
       end
 

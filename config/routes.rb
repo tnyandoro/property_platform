@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "login", to: "sessions#create"
       delete "logout", to: "sessions#destroy"
+      get "parties", to: "parties#index"
       resources :properties
       scope "properties/:property_id" do
         post "photos",       to: "property_photos#create"
@@ -22,6 +23,12 @@ Rails.application.routes.draw do
         get  "inspections/:inspection_id/photos", to: "inspection_photos#index",  as: :inspection_photos
         post "inspections/:inspection_id/photos", to: "inspection_photos#create"
         get  "ownership",    to: "ownership#index"
+        post "ownership",    to: "ownership#create"
+        post "ownership/transfers", to: "ownership#transfer"
+        patch "ownership/:ownership_id", to: "ownership#update"
+        post "ownership/:ownership_id/close", to: "ownership#close"
+        get "ownership/:ownership_id/documents", to: "ownership_documents#index"
+        post "ownership/:ownership_id/documents", to: "ownership_documents#create"
         get  "assignments",  to: "assignments#index"
       end
     end
