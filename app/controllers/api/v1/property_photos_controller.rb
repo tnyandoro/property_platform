@@ -6,6 +6,8 @@ module Api
         file = params[:file]
         return render json: { error: "file param is required" },
                       status: :bad_request unless file.is_a?(ActionDispatch::Http::UploadedFile)
+        return render json: { error: PHOTO_SIZE_ERROR },
+                      status: :payload_too_large if file.size > MAX_PHOTO_UPLOAD_SIZE
 
         blob = ActiveStorage::Blob.create_and_upload!(
           io:           file,
@@ -13,7 +15,7 @@ module Api
           content_type: file.content_type
         )
 
-        url = blob.service_url(expires_in: 10.years) rescue nil
+        url = blob.url(expires_in: 10.years)
 
         property.update!(cover_photo_url: url)
 

@@ -39,6 +39,49 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     assert_equal @user, property.property_assignments.last.user
   end
 
+  test "uploads a cover photo for an assigned property" do
+    property = assigned_property
+    authenticate_as(@user)
+    upload = Rack::Test::UploadedFile.new(
+      StringIO.new("test image"),
+      "image/jpeg",
+      true,
+      original_filename: "property.jpg"
+    )
+
+    assert_difference "ActiveStorage::Blob.count", 1 do
+      post "/api/v1/properties/#{property.id}/photos",
+           params: { file: upload },
+           headers: @auth_headers
+    end
+
+    assert_response :success
+    photo_url = JSON.parse(response.body).fetch("cover_photo_url")
+    assert photo_url.present?
+    assert_equal photo_url, property.reload.cover_photo_url
+  end
+
+  test "rejects cover photos above the storage size limit before creating a blob" do
+    property = assigned_property
+    authenticate_as(@user)
+    upload = Rack::Test::UploadedFile.new(
+      StringIO.new("x" * (Api::V1::PropertyResourcesController::MAX_PHOTO_UPLOAD_SIZE + 1)),
+      "image/jpeg",
+      true,
+      original_filename: "large-property.jpg"
+    )
+
+    assert_no_difference "ActiveStorage::Blob.count" do
+      post "/api/v1/properties/#{property.id}/photos",
+           params: { file: upload },
+           headers: @auth_headers
+    end
+
+    assert_response :payload_too_large
+    assert_equal Api::V1::PropertyResourcesController::PHOTO_SIZE_ERROR,
+                 JSON.parse(response.body).fetch("error")
+  end
+
   test "lists only actively assigned properties in the current organization" do
     visible = @organization.properties.create!(name: "Visible", property_type: "residential")
     visible.property_assignments.create!(

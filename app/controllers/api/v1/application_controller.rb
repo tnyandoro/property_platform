@@ -1,6 +1,8 @@
 module Api
   module V1
     class ApplicationController < ::ApplicationController
+      include ActiveStorage::SetCurrent
+
       rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
       rescue_from ActionController::ParameterMissing, with: :render_bad_request
 

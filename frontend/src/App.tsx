@@ -35,6 +35,15 @@ type InspectionDetail = {
 
 type PropertyDraft = { name: string; property_type: string; property_subtype: string; city: string; condition: string }
 const emptyDraft: PropertyDraft = { name: '', property_type: 'residential', property_subtype: 'single_family', city: '', condition: 'good' }
+const MAX_PHOTO_UPLOAD_SIZE = 10 * 1024 * 1024
+const PHOTO_SIZE_ERROR = 'Choose an image that is 10 MiB or smaller.'
+
+type ApiErrorBody = { error?: string; errors?: string[] }
+
+async function responseError(response: Response): Promise<string> {
+  const body: ApiErrorBody = await response.json().catch(() => ({}))
+  return body.error || body.errors?.join(', ') || 'Request failed'
+}
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('property_platform_token')
@@ -43,8 +52,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   })
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.error || body.errors?.join(', ') || 'Request failed')
+    throw new Error(await responseError(response))
   }
   return response.status === 204 ? (undefined as T) : response.json()
 }
@@ -121,8 +129,15 @@ function PropertyDetailWorkspace({ property, portfolio, loading, error, onInspec
 
 function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Property; portfolio: Portfolio; onPhotoUploaded: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   async function uploadCover(file: File) {
+    setUploadError('')
+    if (file.size > MAX_PHOTO_UPLOAD_SIZE) {
+      setUploadError(PHOTO_SIZE_ERROR)
+      return
+    }
+
     setUploading(true)
     try {
       const form = new FormData()
@@ -133,11 +148,13 @@ function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Pro
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.cover_photo_url) onPhotoUploaded(data.cover_photo_url)
-      }
-    } catch { /* non-blocking */ } finally { setUploading(false) }
+      if (!res.ok) throw new Error(await responseError(res))
+      const data = await res.json()
+      if (!data.cover_photo_url) throw new Error('The upload did not return a cover photo URL.')
+      onPhotoUploaded(data.cover_photo_url)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Photo upload failed.')
+    } finally { setUploading(false) }
   }
 
   return <>
@@ -147,12 +164,13 @@ function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Pro
         : <div style={{ width: '100%', height: 180, background: '#f0f0ec', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={40} color="#c0bdb5" /></div>}
       <div style={{ position: 'absolute', bottom: 10, right: 10 }}>
         <label style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 12, padding: '5px 10px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-          <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f) }} />
+          <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.currentTarget.value = '' }} />
           {uploading ? 'Uploading…' : '📷 Change photo'}
         </label>
       </div>
       <span className={`condition ${property.condition || 'good'}`} style={{ position: 'absolute', top: 10, right: 10 }}>{property.condition || 'active'}</span>
     </div>
+    {uploadError && <div className="form-error" role="alert">{uploadError}</div>}
     <div style={{ padding: '0 4px 12px' }}>
       <h3 style={{ margin: '0 0 4px' }}>{property.property_type} property</h3>
       <p style={{ margin: 0, color: '#57606a', fontSize: 13 }}>{property.address.line_1 || 'Address not supplied'}<br />{property.address.city || 'City pending'}{property.address.province ? `, ${property.address.province}` : ''}</p>
@@ -197,6 +215,12 @@ function InspectionForm({ propertyId, inspection, onClose, onSaved }: { property
   }
 
   async function uploadPhoto(inspectionRoomId: string, itemId: string, file: File) {
+    setError('')
+    if (file.size > MAX_PHOTO_UPLOAD_SIZE) {
+      setError(PHOTO_SIZE_ERROR)
+      return
+    }
+
     setUploading(itemId)
     try {
       const form = new FormData()
@@ -209,11 +233,13 @@ function InspectionForm({ propertyId, inspection, onClose, onSaved }: { property
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
       })
-      if (res.ok) {
-        const photo = await res.json()
-        if (photo.url) setPhotoUrls((prev) => ({ ...prev, [itemId]: photo.url }))
-      }
-    } catch { /* non-blocking */ } finally { setUploading(null) }
+      if (!res.ok) throw new Error(await responseError(res))
+      const photo = await res.json()
+      if (!photo.url) throw new Error('The upload did not return a photo URL.')
+      setPhotoUrls((prev) => ({ ...prev, [itemId]: photo.url }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo upload failed.')
+    } finally { setUploading(null) }
   }
 
   async function submit(event: React.FormEvent) {
@@ -286,6 +312,14 @@ function CreateProperty({ onClose, onCreated }: { onClose: () => void; onCreated
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
+    if (f.size > MAX_PHOTO_UPLOAD_SIZE) {
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      setError(PHOTO_SIZE_ERROR)
+      e.currentTarget.value = ''
+      return
+    }
+    setError('')
     setPhotoFile(f)
     setPhotoPreview(URL.createObjectURL(f))
   }
@@ -320,7 +354,7 @@ function CreateProperty({ onClose, onCreated }: { onClose: () => void; onCreated
 
       {/* Cover photo picker */}
       <label style={{ display: 'block', cursor: 'pointer', marginBottom: 16 }}>
-        <p className="eyebrow" style={{ marginBottom: 6 }}>Cover photo <span style={{ color: '#87938a', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— optional</span></p>
+        <p className="eyebrow" style={{ marginBottom: 6 }}>Cover photo <span style={{ color: '#87938a', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— optional, up to 10 MiB</span></p>
         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={pickFile} />
         <div style={{ width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', background: '#f0f0ec', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #d1cfc8' }}>
           {photoPreview
