@@ -2,6 +2,7 @@ module Api
   module V1
     class PortfolioController < PropertyResourcesController
       include OwnershipSerialization
+      include LeaseSerialization
 
       def show
         render json: {
@@ -16,7 +17,7 @@ module Api
             .map { |record| ownership_payload(record) },
           assignments: property.property_assignments.includes(:user).map { |record| assignment_payload(record) },
           inspections: property.inspections.map { |inspection| inspection_payload(inspection) },
-          leases:      property.leases.includes(:tenant).map { |lease| lease_payload(lease) },
+          leases:      property.leases.includes(:tenant).with_attached_lease_pdf.map { |lease| lease_payload(lease) },
           maintenance: property.maintenance_requests.order(reported_at: :desc).map { |req| maintenance_payload(req) }
         }
       end
@@ -105,20 +106,6 @@ module Api
           locked_at:       inspection.locked_at,
           inspector_id:    inspection.inspector_id,
           notes:           inspection.notes
-        }
-      end
-
-      def lease_payload(lease)
-        {
-          id:            lease.id,
-          unit_id:       lease.unit_id,
-          status:        lease.status,
-          lease_type:    lease.lease_type,
-          start_date:    lease.start_date,
-          end_date:      lease.end_date,
-          monthly_rent:  lease.monthly_rent,
-          rent_currency: lease.rent_currency,
-          tenant_name:   lease.tenant&.name
         }
       end
 

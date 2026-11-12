@@ -11,7 +11,7 @@ module PropertyManagerAuthorization
 
     return true if manager
 
-    render json: { error: "Only an active property manager can manage ownership information." }, status: :forbidden
+    render json: { error: "Only an active property manager can manage property records." }, status: :forbidden
     false
   end
 end

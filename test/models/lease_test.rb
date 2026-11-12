@@ -27,6 +27,7 @@ class LeaseTest < ActiveSupport::TestCase
       status:       "draft",
       lease_type:   "fixed_term",
       start_date:   Date.current,
+      end_date:     1.year.from_now.to_date,
       monthly_rent: 5000
     )
     assert lease.valid?, lease.errors.full_messages.inspect
@@ -36,7 +37,23 @@ class LeaseTest < ActiveSupport::TestCase
     lease = Lease.new(organization: @organization, property: @property, unit: @unit, tenant: @tenant)
     assert_not lease.valid?
     assert_includes lease.errors[:start_date], "can't be blank"
+    assert_includes lease.errors[:end_date], "can't be blank"
     assert_includes lease.errors[:monthly_rent], "can't be blank"
+  end
+
+  test "rejects an end date before the start date" do
+    lease = Lease.new(
+      organization: @organization,
+      property: @property,
+      unit: @unit,
+      tenant: @tenant,
+      start_date: Date.current,
+      end_date: 1.day.ago.to_date,
+      monthly_rent: 5000
+    )
+
+    assert_not lease.valid?
+    assert_includes lease.errors[:end_date], "cannot be before the lease start date"
   end
 
   test "validates status" do
@@ -51,11 +68,13 @@ class LeaseTest < ActiveSupport::TestCase
   test "active scope returns only active leases" do
     Lease.create!(
       organization: @organization, property: @property, unit: @unit, tenant: @tenant,
-      status: "active", lease_type: "fixed_term", start_date: Date.current, monthly_rent: 5000
+      status: "active", lease_type: "fixed_term", start_date: Date.current,
+      end_date: 1.year.from_now.to_date, monthly_rent: 5000
     )
     Lease.create!(
       organization: @organization, property: @property, unit: @unit, tenant: @tenant,
-      status: "expired", lease_type: "fixed_term", start_date: 1.year.ago, monthly_rent: 4000
+      status: "expired", lease_type: "fixed_term", start_date: 1.year.ago,
+      end_date: 1.day.ago.to_date, monthly_rent: 4000
     )
     assert_equal 1, Lease.active.count
   end

@@ -22,6 +22,8 @@ Rails.application.routes.draw do
         patch "inspections/:inspection_id",  to: "inspection_detail#update"
         get  "inspections/:inspection_id/photos", to: "inspection_photos#index",  as: :inspection_photos
         post "inspections/:inspection_id/photos", to: "inspection_photos#create"
+        get  "leases", to: "leases#index"
+        post "leases", to: "leases#create"
         get  "ownership",    to: "ownership#index"
         post "ownership",    to: "ownership#create"
         post "ownership/transfers", to: "ownership#transfer"

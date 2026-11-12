@@ -47,6 +47,22 @@ type OwnershipRecord = {
   verified_by?: { id: string; name: string } | null
   documents: OwnershipDocument[]
 }
+type LeaseRecord = {
+  id: string
+  unit_id: string
+  tenant_id: string
+  tenant_name: string
+  status: string
+  lease_type: string
+  start_date: string
+  end_date?: string | null
+  created_at: string
+  monthly_rent: number | string
+  rent_currency?: string | null
+  deposit_amount?: number | string | null
+  pdf_filename?: string | null
+  pdf_url?: string | null
+}
 type Portfolio = {
   property: Property
   buildings: Array<{ id: string; name: string; building_type?: string; units_count?: number }>
@@ -56,7 +72,7 @@ type Portfolio = {
   ownership: OwnershipRecord[]
   assignments: Array<{ id: string; user: { name: string; email: string }; assignment_type: string; starts_at: string; ends_at?: string }>
   inspections: Array<{ id: string; inspection_type: string; status: string; scheduled_on?: string; inspected_on?: string }>
-  leases: Array<{ id: string; unit_id: string; status: string; lease_type: string; start_date: string; end_date?: string; monthly_rent: number | string; tenant_name?: string }>
+  leases: LeaseRecord[]
   maintenance: Array<{ id: string; title: string; priority: string; status: string; reported_at: string; category?: string }>
 }
 type InspectionDetail = {
@@ -69,6 +85,7 @@ type PropertyDraft = { name: string; property_type: string; property_subtype: st
 const emptyDraft: PropertyDraft = { name: '', property_type: 'residential', property_subtype: 'single_family', city: '', condition: 'good' }
 const MAX_PHOTO_UPLOAD_SIZE = 10 * 1024 * 1024
 const PHOTO_SIZE_ERROR = 'Choose an image that is 10 MiB or smaller.'
+const MAX_LEASE_PDF_UPLOAD_SIZE = 10 * 1024 * 1024
 
 type ApiErrorBody = { error?: string; errors?: string[] }
 
@@ -156,7 +173,7 @@ function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
 function PropertyDetailWorkspace({ property, portfolio, loading, error, onInspection, onSchedule, onPhotoUploaded, onClose }: { property: Property; portfolio: Portfolio | null; loading: boolean; error: string; onInspection: (inspectionId: string) => void; onSchedule: () => void; onPhotoUploaded: (url: string) => void; onClose: () => void }) {
   const [tab, setTab] = useState('overview')
   const tabs = [['overview', 'Overview'], ['structure', 'Structure'], ['inventory', 'Inventory'], ['ownership', 'Ownership'], ['access', 'Access'], ['inspections', 'Inspections'], ['leases', 'Leases'], ['maintenance', 'Maintenance']]
-  return <div className="drawer-backdrop" onClick={onClose}><aside className="detail-workspace" onClick={(event) => event.stopPropagation()}><div className="detail-header"><div><p className="eyebrow">Property workspace</p><h2>{property.name}</h2><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="detail-tabs">{tabs.map(([value, label]) => <button className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{label}</button>)}</div>{loading ? <div className="detail-loading"><div className="spinner" /> Loading property workspace</div> : error ? <div className="detail-error"><X size={17} /><p>{error}</p></div> : portfolio && <div className="detail-content">{tab === 'overview' && <OverviewPanel property={property} portfolio={portfolio} onPhotoUploaded={onPhotoUploaded} />}{tab === 'structure' && <StructurePanel portfolio={portfolio} />}{tab === 'inventory' && <InventoryPanel portfolio={portfolio} />}{tab === 'ownership' && <OwnershipPanel property={property} portfolio={portfolio} />}{tab === 'access' && <AccessPanel portfolio={portfolio} />}{tab === 'inspections' && <InspectionsPanel portfolio={portfolio} onInspection={onInspection} onSchedule={onSchedule} />}{tab === 'leases' && <LeasesPanel portfolio={portfolio} />}{tab === 'maintenance' && <MaintenancePanel portfolio={portfolio} />}</div>}</aside></div>
+  return <div className="drawer-backdrop" onClick={onClose}><aside className="detail-workspace" onClick={(event) => event.stopPropagation()}><div className="detail-header"><div><p className="eyebrow">Property workspace</p><h2>{property.name}</h2><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="detail-tabs">{tabs.map(([value, label]) => <button className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{label}</button>)}</div>{loading ? <div className="detail-loading"><div className="spinner" /> Loading property workspace</div> : error ? <div className="detail-error"><X size={17} /><p>{error}</p></div> : portfolio && <div className="detail-content">{tab === 'overview' && <OverviewPanel property={property} portfolio={portfolio} onPhotoUploaded={onPhotoUploaded} />}{tab === 'structure' && <StructurePanel portfolio={portfolio} />}{tab === 'inventory' && <InventoryPanel portfolio={portfolio} />}{tab === 'ownership' && <OwnershipPanel property={property} portfolio={portfolio} />}{tab === 'access' && <AccessPanel portfolio={portfolio} />}{tab === 'inspections' && <InspectionsPanel portfolio={portfolio} onInspection={onInspection} onSchedule={onSchedule} />}{tab === 'leases' && <LeasesPanel propertyId={property.id} portfolio={portfolio} />}{tab === 'maintenance' && <MaintenancePanel portfolio={portfolio} />}</div>}</aside></div>
 }
 
 function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Property; portfolio: Portfolio; onPhotoUploaded: (url: string) => void }) {
@@ -897,9 +914,201 @@ function InspectionsPanel({ portfolio, onInspection, onSchedule }: { portfolio: 
 function Metric({ label, value }: { label: string; value: number }) { return <div><span>{label}</span><strong>{value.toString().padStart(2, '0')}</strong></div> }
 function DataPanel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) { return <section className="data-panel"><div className="panel-heading"><h3>{title}</h3><span>{count.toString().padStart(2, '0')} records</span></div>{children}</section> }
 function EmptyPanel({ label }: { label: string }) { return <div className="panel-empty"><span>{label}</span></div> }
-function LeasesPanel({ portfolio }: { portfolio: Portfolio }) {
-  const leases = portfolio.leases ?? []
-  return <DataPanel title="Leases" count={leases.length}>{leases.length ? leases.map((lease) => <div className="data-row" key={lease.id}><div><strong>{lease.tenant_name || 'Tenant'}</strong><span>{lease.lease_type.replace('_', ' ')} · from {lease.start_date}{lease.end_date ? ` to ${lease.end_date}` : ' (open)'}</span></div><small className={`status-${lease.status}`}>{lease.status} · ${Number(lease.monthly_rent).toLocaleString()}/mo</small></div>) : <EmptyPanel label="No leases recorded yet" />}</DataPanel>
+function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio: Portfolio }) {
+  const [leases, setLeases] = useState(portfolio.leases ?? [])
+  const [showForm, setShowForm] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => setLeases(portfolio.leases ?? []), [portfolio.leases])
+
+  const unitHistories = portfolio.units.map((unit) => ({
+    unit,
+    leases: leases
+      .filter((lease) => lease.unit_id === unit.id)
+      .sort((a, b) => b.start_date.localeCompare(a.start_date) || b.created_at.localeCompare(a.created_at)),
+  })).filter((history) => history.leases.length > 0)
+
+  return <section className="data-panel">
+    <div className="panel-heading lease-panel-heading">
+      <div><h3>Lease history</h3><span>{leases.length} stored · latest 5 shown per unit</span></div>
+      <button className="primary-button" disabled={!portfolio.units.length} onClick={() => { setError(''); setShowForm(true) }}><Plus size={15} /> Add lease</button>
+    </div>
+    {error && <div className="form-error" role="alert">{error}</div>}
+    {unitHistories.length ? unitHistories.map(({ unit, leases: unitLeases }) => {
+      const label = unit.unit_number || unit.name || 'Unit'
+      const visibleLeases = unitLeases.slice(0, 5)
+      return <section className="lease-unit-history" key={unit.id}>
+        <h4>{label}</h4>
+        {visibleLeases.map((lease) => <div className="lease-row" key={lease.id}>
+          <div className="lease-row-main">
+            <strong>{lease.tenant_name || 'Tenant not recorded'}</strong>
+            <span>{lease.lease_type.replace(/_/g, ' ')} · {lease.start_date} to {lease.end_date || 'End date not recorded'}</span>
+            <small className={`status-${lease.status}`}>{lease.status}</small>
+          </div>
+          <div className="lease-row-side">
+            <strong>{lease.rent_currency || 'Currency not recorded'} {Number(lease.monthly_rent).toLocaleString()}/mo</strong>
+            {lease.pdf_url
+              ? <a href={lease.pdf_url} target="_blank" rel="noreferrer">{lease.pdf_filename || 'View lease PDF'}</a>
+              : <span>PDF not attached</span>}
+          </div>
+        </div>)}
+        {unitLeases.length > 5 && <p className="lease-history-note">Showing the latest 5 of {unitLeases.length} leases. Older lease records remain stored.</p>}
+      </section>
+    }) : <EmptyPanel label={portfolio.units.length ? 'No leases recorded yet' : 'Add a unit before recording a lease'} />}
+    {showForm && <LeaseForm
+      propertyId={propertyId}
+      units={portfolio.units}
+      onClose={() => setShowForm(false)}
+      onSaved={(lease) => {
+        setLeases((current) => [lease, ...current.filter((record) => record.id !== lease.id)])
+        setShowForm(false)
+      }}
+    />}
+  </section>
+}
+
+function LeaseForm({ propertyId, units, onClose, onSaved }: {
+  propertyId: string
+  units: Portfolio['units']
+  onClose: () => void
+  onSaved: (lease: LeaseRecord) => void
+}) {
+  const [parties, setParties] = useState<OwnershipParty[]>([])
+  const [tenantMode, setTenantMode] = useState<'existing' | 'new'>('new')
+  const [tenantId, setTenantId] = useState('')
+  const [tenantName, setTenantName] = useState('')
+  const [tenantType, setTenantType] = useState('individual')
+  const [unitId, setUnitId] = useState(units[0]?.id || '')
+  const [startDate, setStartDate] = useState(localDateKey())
+  const [endDate, setEndDate] = useState('')
+  const [leaseType, setLeaseType] = useState('fixed_term')
+  const [monthlyRent, setMonthlyRent] = useState('')
+  const [rentCurrency, setRentCurrency] = useState('ZAR')
+  const [depositAmount, setDepositAmount] = useState('')
+  const [termsSummary, setTermsSummary] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [partyError, setPartyError] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    api<OwnershipParty[]>('/parties')
+      .then((loadedParties) => { if (active) setParties(loadedParties) })
+      .catch((err) => { if (active) setPartyError(err instanceof Error ? err.message : 'Existing parties could not be loaded.') })
+    return () => { active = false }
+  }, [])
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!file) {
+      setError('Choose the signed lease PDF.')
+      return
+    }
+    if (file.size > MAX_LEASE_PDF_UPLOAD_SIZE) {
+      setError('Lease PDF must be 10 MiB or smaller.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      const body = new FormData()
+      body.append('lease[unit_id]', unitId)
+      if (tenantMode === 'existing') {
+        body.append('lease[tenant_id]', tenantId)
+      } else {
+        body.append('lease[tenant][name]', tenantName)
+        body.append('lease[tenant][party_type]', tenantType)
+      }
+      body.append('lease[start_date]', startDate)
+      body.append('lease[end_date]', endDate)
+      body.append('lease[lease_type]', leaseType)
+      body.append('lease[monthly_rent]', monthlyRent)
+      body.append('lease[rent_currency]', rentCurrency)
+      if (depositAmount) body.append('lease[deposit_amount]', depositAmount)
+      if (termsSummary) body.append('lease[terms_summary]', termsSummary)
+      body.append('lease_pdf', file)
+
+      const token = localStorage.getItem('property_platform_token')
+      const response = await fetch(`/api/v1/properties/${propertyId}/leases`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      })
+      if (!response.ok) throw new Error(await responseError(response))
+      onSaved(await response.json() as LeaseRecord)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lease could not be saved.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <div className="modal-backdrop" onClick={onClose}>
+    <form className="modal lease-modal" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+      <div className="modal-header">
+        <div><p className="eyebrow">Lease records</p><h2>Store signed lease</h2></div>
+        <button type="button" className="icon-button" aria-label="Close lease form" onClick={onClose}><X size={18} /></button>
+      </div>
+      <div className="lease-form-scroll">
+        {partyError && <p className="lease-form-note" role="status">{partyError} You can still add a new tenant.</p>}
+        <label>Unit
+          <select required value={unitId} onChange={(event) => setUnitId(event.target.value)}>
+            {units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_number || unit.name || 'Unit'}</option>)}
+          </select>
+        </label>
+        <label>Tenant source
+          <select value={tenantMode} onChange={(event) => setTenantMode(event.target.value as 'existing' | 'new')}>
+            <option value="new">Create tenant record</option>
+            <option value="existing" disabled={!parties.length}>Select existing party</option>
+          </select>
+        </label>
+        {tenantMode === 'existing' ? <label>Tenant / party
+          <select required value={tenantId} onChange={(event) => setTenantId(event.target.value)}>
+            <option value="">Select a party</option>
+            {parties.map((party) => <option value={party.id} key={party.id}>{party.name} · {party.party_type}</option>)}
+          </select>
+        </label> : <div className="form-grid">
+          <label>Tenant / entity name<input required value={tenantName} onChange={(event) => setTenantName(event.target.value)} /></label>
+          <label>Party type
+            <select value={tenantType} onChange={(event) => setTenantType(event.target.value)}>
+              {ownershipPartyTypes.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            </select>
+          </label>
+        </div>}
+        <div className="form-grid">
+          <label>Lease begins<input required type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+          <label>Lease ends<input required type="date" min={startDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+        </div>
+        <label>Lease type
+          <select value={leaseType} onChange={(event) => setLeaseType(event.target.value)}>
+            <option value="fixed_term">Fixed term</option>
+            <option value="month_to_month">Month to month</option>
+            <option value="periodic">Periodic</option>
+          </select>
+        </label>
+        <div className="form-grid">
+          <label>Monthly rent<input required type="number" min="0" step="0.01" value={monthlyRent} onChange={(event) => setMonthlyRent(event.target.value)} /></label>
+          <label>Rent currency
+            <select value={rentCurrency} onChange={(event) => setRentCurrency(event.target.value)}>
+              <option value="ZAR">ZAR</option>
+              <option value="USD">USD</option>
+            </select>
+          </label>
+        </div>
+        <label>Deposit amount (optional)<input type="number" min="0" step="0.01" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /></label>
+        <label>Lease summary (optional)<textarea rows={3} value={termsSummary} onChange={(event) => setTermsSummary(event.target.value)} /></label>
+        <label>Signed lease PDF<input type="file" accept="application/pdf,.pdf" required onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
+        <p className="lease-form-note">PDF files only, up to 10 MiB. Lease dates and rent are stored with the document.</p>
+        {error && <div className="form-error" role="alert">{error}</div>}
+      </div>
+      <div className="modal-actions">
+        <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>
+        <button className="primary-button" disabled={saving}>{saving ? 'Saving lease...' : 'Save lease'}</button>
+      </div>
+    </form>
+  </div>
 }
 function MaintenancePanel({ portfolio }: { portfolio: Portfolio }) {
   const requests = portfolio.maintenance ?? []
