@@ -1,0 +1,941 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "verify Rails tests",
+			"type": "shell",
+			"command": "bundle",
+			"args": [
+				"exec",
+				"rails",
+				"test",
+				"test/models/user_test.rb",
+				"test/requests/properties_test.rb"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "verify React build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--prefix",
+				"frontend",
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "verify React build cmd",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"--prefix",
+				"frontend",
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "install Ruby dependencies",
+			"type": "shell",
+			"command": "bundle",
+			"args": [
+				"install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install frontend dependencies",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"--prefix",
+				"frontend",
+				"install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "rerun React build",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"--prefix",
+				"frontend",
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "rerun Rails tests",
+			"type": "shell",
+			"command": "bundle",
+			"args": [
+				"exec",
+				"rails",
+				"test",
+				"test/models/user_test.rb",
+				"test/requests/properties_test.rb"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "reinstall frontend WSL dependencies",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && rm -rf node_modules package-lock.json && npm install && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "check WSL frontend install",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && printf 'lock='; test -f package-lock.json && echo yes || echo no; printf 'rolldown='; test -d node_modules/rolldown && echo yes || echo no; test -f package-lock.json && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "verify WSL frontend build",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend; test -f package-lock.json; echo LOCK:$?; test -d node_modules/rolldown; echo ROLLDOWN:$?; npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "repair WSL frontend packages",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm install --include=optional && npm install -D @vitejs/plugin-react @types/react @types/react-dom && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "confirm WSL frontend build",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && test -f node_modules/@vitejs/plugin-react/package.json; echo PLUGIN:$?; npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "start WSL frontend dev server",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run dev -- --host 0.0.0.0"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "inspect WSL Ruby bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && ruby -v && bundle -v && bundle platform && grep -A12 '^PLATFORMS' Gemfile.lock"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "inspect WSL packages",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cat /etc/os-release; printf '\\nAPT: '; command -v apt || true; printf 'SUDO: '; command -v sudo || true; printf 'USER: '; id -un"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install WSL Ruby toolchain",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"whoami; command -v apt; command -v sudo || true; apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ruby-full build-essential libpq-dev"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "check WSL sudo access",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"sudo -n true; echo SUDO_EXIT:$?"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install WSL system prerequisites",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"-u",
+				"root",
+				"--",
+				"bash",
+				"-lc",
+				"apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ruby-full build-essential libpq-dev"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install Rails WSL bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && gem install bundler -v 2.5.3 --no-document && bundle config set --local path vendor/bundle && bundle install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install WSL Bundler",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"-u",
+				"root",
+				"--",
+				"gem",
+				"install",
+				"bundler",
+				"-v",
+				"2.5.3",
+				"--no-document"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "bundle Rails dependencies in WSL",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ config set --local path vendor/bundle && bundle _2.5.3_ install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify WSL Rails bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ check && ruby -v && bundle _2.5.3_ exec rails about"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "resume WSL Rails bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ install --jobs 2"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "check completed WSL bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ check"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "complete WSL Rails bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ install --jobs 1 --retry 2 --verbose"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify final Rails bundle",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ check && ruby -v && bundle _2.5.3_ exec rails about"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "run Rails tests in WSL",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "capture Rails test result",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "inspect nested Rails routes",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails routes | grep -E 'portfolio|buildings|units|inspections|ownership|assignments'"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "list nested Rails routes",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails routes > /tmp/property-platform-routes.log 2>&1; grep portfolio /tmp/property-platform-routes.log; grep buildings /tmp/property-platform-routes.log; grep units /tmp/property-platform-routes.log; grep inspections /tmp/property-platform-routes.log; grep ownership /tmp/property-platform-routes.log; grep assignments /tmp/property-platform-routes.log"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "rerun Rails tests after route fix",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "build property detail frontend",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "build inspection frontend",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "test inspection workflow",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb test/requests/inspection_detail_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "rerun inspection workflow tests",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb test/requests/inspection_detail_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "verify inspection workflow",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb test/requests/inspection_detail_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "finalize inspection workflow tests",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb test/requests/inspection_detail_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "inspect inspection detail route",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails routes > /tmp/property-platform-routes.log 2>&1; grep 'inspection_detail\\|inspections/:inspection_id' /tmp/property-platform-routes.log"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "list inspection detail route",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails routes > /tmp/property-platform-routes.log 2>&1; grep inspection_detail /tmp/property-platform-routes.log"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "run final inspection tests",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/models/user_test.rb test/requests/properties_test.rb test/requests/inspection_detail_test.rb > /tmp/property-platform-tests.log 2>&1; code=$?; cat /tmp/property-platform-tests.log; echo TEST_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "build backend Rails suite",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test > /tmp/property-platform-backend.log 2>&1; code=$?; cat /tmp/property-platform-backend.log; echo BACKEND_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "build frontend production",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend; npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "start Rails API for UI test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails server -b 0.0.0.0 -p 3000"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "start React UI for browser test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run dev -- --host 0.0.0.0 --port 5173"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "inspect worktree before staging",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "stage project changes",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"-A"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify staged changes",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "remove generated task from stage",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"restore",
+				"--staged",
+				"frontend/.vscode/tasks.json"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "stage ignore update",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				".gitignore"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "show staged summary",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--cached",
+				"--stat"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "show staged status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "build frontend scheduling slice",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "test scheduling slice",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test > /tmp/property-platform-backend.log 2>&1; code=$?; cat /tmp/property-platform-backend.log; echo BACKEND_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "verify inspection scheduling test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test test/requests/inspection_detail_test.rb > /tmp/property-platform-scheduling.log 2>&1; code=$?; cat /tmp/property-platform-scheduling.log; echo SCHEDULING_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "restart React UI for scheduling test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run dev -- --host 0.0.0.0 --port 5176"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "restart Rails API for scheduling test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails server -b 0.0.0.0 -p 3000"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "seed WSL database for UI test",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails db:seed"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify idempotent inspection seed",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails db:seed && bundle _2.5.3_ exec rails db:seed && bundle _2.5.3_ runner 'puts({ organizations: Organization.count, properties: Property.count, inspections: Inspection.count, inspection_rooms: InspectionRoom.count, inspection_items: InspectionItem.count }.inspect)'"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "rerun idempotent inspection seed",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails db:seed && bundle _2.5.3_ exec rails db:seed && bundle _2.5.3_ runner 'puts({ organizations: Organization.count, properties: Property.count, inspections: Inspection.count, inspection_rooms: InspectionRoom.count, inspection_items: InspectionItem.count }.inspect)'"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify seeded inspection counts",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails db:seed; bundle _2.5.3_ runner \"puts({ organizations: Organization.count, properties: Property.count, inspections: Inspection.count, inspection_rooms: InspectionRoom.count, inspection_items: InspectionItem.count }.inspect)\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify seed record counts",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails runner \"puts Organization.count\"; bundle _2.5.3_ exec rails runner \"puts Property.count\"; bundle _2.5.3_ exec rails runner \"puts Inspection.count\"; bundle _2.5.3_ exec rails runner \"puts InspectionRoom.count\"; bundle _2.5.3_ exec rails runner \"puts InspectionItem.count\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "run expanded inspection seed",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails db:seed && bundle _2.5.3_ exec rails db:seed"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify inspection checklist counts",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails runner 'puts \"ROOMS=#{InspectionRoom.count}\"; puts \"ITEMS=#{InspectionItem.count}\"; puts \"INSPECTIONS=#{Inspection.count}\"'"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "count seeded rooms",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails runner \"puts InspectionRoom.count\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "count seeded inspection items",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails runner \"puts InspectionItem.count\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "count seeded inspections",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails runner \"puts Inspection.count\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "build move-in inspection UI",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "test move-in inspection workflow",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform; bundle _2.5.3_ exec rails test > /tmp/property-platform-backend.log 2>&1; code=$?; cat /tmp/property-platform-backend.log; echo BACKEND_EXIT:$code; exit $code"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "capture move-in test output",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails test test/requests/inspection_detail_test.rb"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "verify move-in seed execution",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails db:seed"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "test complete room checklist",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform && bundle _2.5.3_ exec rails test test/requests/inspection_detail_test.rb"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby-tasks"
+			]
+		},
+		{
+			"label": "build room checklist frontend",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"bash",
+				"-lc",
+				"cd /mnt/d/projects/property_platform/frontend && npm run build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		}
+	]
+}
