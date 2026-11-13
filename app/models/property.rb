@@ -12,6 +12,7 @@ class Property < ApplicationRecord
   has_many :inspections
   has_many :leases
   has_many :maintenance_requests
+  has_many :maintenance_schedules
   has_many :damage_assessments
   has_many :documents
 

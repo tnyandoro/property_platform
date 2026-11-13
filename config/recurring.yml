@@ -1,0 +1,4 @@
+production:
+  generate_due_maintenance_schedules:
+    class: GenerateDueMaintenanceSchedulesJob
+    schedule: every day at 2am

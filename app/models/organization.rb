@@ -14,6 +14,9 @@ class Organization < ApplicationRecord
   has_many :property_assignments
   has_many :leases
   has_many :maintenance_requests
+  has_many :maintenance_schedules
+  has_many :maintenance_cost_allocations
+  has_many :maintenance_financial_entries
   has_many :damage_assessments
   has_many :documents
   has_many :audit_logs

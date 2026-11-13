@@ -7,6 +7,7 @@ class DamageAssessment < ApplicationRecord
   belongs_to :inspection_item, optional: true
   belongs_to :assessed_by,     class_name: "User"
   has_many   :documents, foreign_key: :damage_assessment_id, dependent: :destroy
+  has_many   :maintenance_requests, foreign_key: :source_damage_assessment_id
 
   SEVERITIES       = %w[minor moderate severe critical].freeze
   RESPONSIBILITIES = %w[landlord tenant shared unknown].freeze

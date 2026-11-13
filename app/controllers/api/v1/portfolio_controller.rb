@@ -18,7 +18,8 @@ module Api
           assignments: property.property_assignments.includes(:user).map { |record| assignment_payload(record) },
           inspections: property.inspections.map { |inspection| inspection_payload(inspection) },
           leases:      property.leases.includes(:tenant).with_attached_lease_pdf.map { |lease| lease_payload(lease) },
-          maintenance: property.maintenance_requests.order(reported_at: :desc).map { |req| maintenance_payload(req) }
+          maintenance: property.maintenance_requests.order(reported_at: :desc).map { |req| maintenance_payload(req) },
+          damage_assessments: property.damage_assessments.order(assessed_on: :desc).map { |assessment| damage_assessment_payload(assessment) }
         }
       end
 
@@ -118,6 +119,20 @@ module Api
           status:      req.status,
           reported_at: req.reported_at,
           resolved_at: req.resolved_at
+        }
+      end
+
+      def damage_assessment_payload(assessment)
+        {
+          id: assessment.id,
+          description: assessment.description,
+          severity: assessment.severity,
+          responsibility: assessment.responsibility,
+          status: assessment.status,
+          estimated_cost: assessment.estimated_cost,
+          inspection_id: assessment.inspection_id,
+          inspection_item_id: assessment.inspection_item_id,
+          assessed_on: assessment.assessed_on
         }
       end
     end

@@ -6,6 +6,7 @@ class InspectionItem < ApplicationRecord
   belongs_to :property_item,   optional: true
   has_many   :inspection_amendments, dependent: :destroy
   has_many   :inspection_photos,     dependent: :destroy
+  has_many   :maintenance_requests, foreign_key: :source_inspection_item_id
 
   validates :item_name, :item_type_name, :condition, :condition_score, presence: true
   validates :condition_score, inclusion: { in: 1..5 }

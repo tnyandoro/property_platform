@@ -8,6 +8,7 @@ class Inspection < ApplicationRecord
   has_many :inspection_items,      inverse_of: :inspection, dependent: :destroy
   has_many :inspection_amendments, dependent: :destroy
   has_many :inspection_photos,     dependent: :destroy
+  has_many :maintenance_requests, foreign_key: :source_inspection_id
 
   validates :inspection_type, :status, presence: true
 

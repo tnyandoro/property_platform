@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_12_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -126,6 +126,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_200000) do
     t.index ["organization_id", "lease_id"], name: "index_documents_on_organization_id_and_lease_id"
     t.index ["organization_id", "property_id"], name: "index_documents_on_organization_id_and_property_id"
     t.index ["organization_id", "property_ownership_id"], name: "index_documents_on_org_and_property_ownership"
+    t.index ["maintenance_request_id"], name: "index_documents_on_maintenance_request_id"
     t.index ["organization_id"], name: "index_documents_on_organization_id"
     t.index ["property_ownership_id"], name: "index_documents_on_property_ownership_id"
     t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
@@ -282,35 +283,159 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_200000) do
   create_table "maintenance_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "acknowledged_at"
     t.decimal "actual_cost", precision: 12, scale: 2
+    t.datetime "actual_started_at"
     t.uuid "assigned_to_id"
+    t.text "approval_notes"
+    t.datetime "approved_at"
+    t.uuid "approved_by_id"
+    t.decimal "approved_cost", precision: 12, scale: 2
+    t.uuid "closed_by_id"
     t.string "category"
+    t.text "cancellation_reason"
+    t.string "classification", default: "undetermined", null: false
     t.datetime "closed_at"
+    t.uuid "contractor_id"
     t.datetime "created_at", null: false
+    t.string "currency", default: "ZAR", null: false
     t.text "description"
     t.decimal "estimated_cost", precision: 12, scale: 2
+    t.uuid "lease_id"
+    t.uuid "maintenance_schedule_id"
     t.uuid "organization_id", null: false
+    t.date "occurrence_on"
     t.string "priority", default: "medium", null: false
     t.uuid "property_id", null: false
     t.datetime "reported_at", null: false
     t.uuid "reported_by_id", null: false
+    t.text "responsibility_notes"
+    t.datetime "responsibility_reviewed_at"
+    t.uuid "responsibility_reviewed_by_id"
+    t.string "responsibility_status", default: "pending_review", null: false
     t.text "resolution_notes"
     t.datetime "resolved_at"
     t.uuid "room_id"
+    t.date "scheduled_on"
+    t.uuid "source_damage_assessment_id"
+    t.uuid "source_inspection_id"
+    t.uuid "source_inspection_item_id"
+    t.string "source_type", default: "manager", null: false
     t.string "status", default: "open", null: false
+    t.date "target_completion_on"
     t.string "title", null: false
     t.uuid "unit_id"
     t.datetime "updated_at", null: false
+    t.text "rejection_reason"
     t.index ["assigned_to_id"], name: "index_maintenance_requests_on_assigned_to_id"
+    t.index ["approved_by_id"], name: "index_maintenance_requests_on_approved_by_id"
+    t.index ["closed_by_id"], name: "index_maintenance_requests_on_closed_by_id"
+    t.index ["contractor_id"], name: "index_maintenance_requests_on_contractor_id"
+    t.index ["lease_id"], name: "index_maintenance_requests_on_lease_id"
+    t.index ["maintenance_schedule_id", "occurrence_on"], name: "idx_maintenance_requests_schedule_occurrence", unique: true, where: "(maintenance_schedule_id IS NOT NULL) AND (occurrence_on IS NOT NULL)"
     t.index ["organization_id", "priority"], name: "index_maintenance_requests_on_organization_id_and_priority"
     t.index ["organization_id", "property_id"], name: "index_maintenance_requests_on_organization_id_and_property_id"
     t.index ["organization_id", "status"], name: "index_maintenance_requests_on_organization_id_and_status"
     t.index ["organization_id"], name: "index_maintenance_requests_on_organization_id"
     t.index ["property_id"], name: "index_maintenance_requests_on_property_id"
     t.index ["reported_by_id"], name: "index_maintenance_requests_on_reported_by_id"
+    t.index ["responsibility_reviewed_by_id"], name: "index_maintenance_requests_on_responsibility_reviewed_by_id"
     t.index ["room_id"], name: "index_maintenance_requests_on_room_id"
+    t.index ["source_inspection_id"], name: "index_maintenance_requests_on_source_inspection_id"
+    t.index ["source_damage_assessment_id"], name: "idx_maint_req_source_damage_assessment", unique: true, where: "(source_damage_assessment_id IS NOT NULL)"
+    t.index ["source_inspection_item_id"], name: "idx_maint_req_source_inspection_item", unique: true, where: "(source_inspection_item_id IS NOT NULL)"
     t.index ["unit_id"], name: "index_maintenance_requests_on_unit_id"
     t.check_constraint "priority::text = ANY (ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'urgent'::character varying]::text[])", name: "maintenance_requests_priority_check"
-    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'acknowledged'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying, 'cancelled'::character varying]::text[])", name: "maintenance_requests_status_check"
+    t.check_constraint "classification IN ('wear_and_tear','accidental_damage','negligence','misuse','structural_deterioration','preventative_maintenance','breakdown','improvement','compliance_safety','other','undetermined')", name: "maintenance_requests_classification_check"
+    t.check_constraint "(estimated_cost IS NULL OR estimated_cost >= 0) AND (approved_cost IS NULL OR approved_cost >= 0) AND (actual_cost IS NULL OR actual_cost >= 0)", name: "maintenance_requests_costs_check"
+    t.check_constraint "responsibility_status IN ('pending_review','approved','disputed')", name: "maintenance_requests_responsibility_status_check"
+    t.check_constraint "source_type IN ('tenant_request','schedule','inspection','damage_assessment','manager','other')", name: "maintenance_requests_source_type_check"
+    t.check_constraint "status IN ('open','acknowledged','awaiting_approval','approved','scheduled','in_progress','resolved','closed','rejected','disputed','cancelled')", name: "maintenance_requests_status_check"
+  end
+
+  create_table "maintenance_cost_allocations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "allocated_amount", precision: 12, scale: 2, null: false
+    t.uuid "approved_by_id", null: false
+    t.string "currency", null: false
+    t.datetime "created_at", null: false
+    t.uuid "maintenance_request_id", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "party_id"
+    t.text "rationale", null: false
+    t.string "responsible_party", null: false
+    t.string "status", default: "approved", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approved_by_id"], name: "index_maintenance_cost_allocations_on_approved_by_id"
+    t.index ["maintenance_request_id"], name: "index_maintenance_cost_allocations_on_maintenance_request_id"
+    t.index ["organization_id", "maintenance_request_id"], name: "idx_maint_alloc_org_request"
+    t.index ["organization_id"], name: "index_maintenance_cost_allocations_on_organization_id"
+    t.index ["party_id"], name: "index_maintenance_cost_allocations_on_party_id"
+    t.check_constraint "allocated_amount >= 0", name: "maintenance_cost_allocations_amount_check"
+    t.check_constraint "responsible_party IN ('owner','tenant','shared','other')", name: "maintenance_cost_allocations_party_check"
+    t.check_constraint "status IN ('approved','superseded')", name: "maintenance_cost_allocations_status_check"
+  end
+
+  create_table "maintenance_financial_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.string "currency", null: false
+    t.datetime "created_at", null: false
+    t.string "entry_type", null: false
+    t.date "occurred_on", null: false
+    t.uuid "maintenance_request_id", null: false
+    t.text "notes"
+    t.uuid "organization_id", null: false
+    t.uuid "party_id"
+    t.string "reference"
+    t.uuid "recorded_by_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["maintenance_request_id"], name: "index_maintenance_financial_entries_on_maintenance_request_id"
+    t.index ["organization_id", "maintenance_request_id", "entry_type"], name: "idx_maint_finance_org_req_type"
+    t.index ["organization_id"], name: "index_maintenance_financial_entries_on_organization_id"
+    t.index ["party_id"], name: "index_maintenance_financial_entries_on_party_id"
+    t.index ["recorded_by_id"], name: "index_maintenance_financial_entries_on_recorded_by_id"
+    t.check_constraint "amount >= 0", name: "maintenance_financial_entries_amount_check"
+    t.check_constraint "entry_type IN ('quotation','invoice','payment')", name: "maintenance_financial_entries_type_check"
+  end
+
+  create_table "maintenance_schedules", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "assigned_to_id"
+    t.string "category"
+    t.string "classification", default: "undetermined", null: false
+    t.uuid "contractor_id"
+    t.string "currency", default: "ZAR", null: false
+    t.uuid "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.date "ends_on"
+    t.string "frequency", default: "once", null: false
+    t.string "generation_mode", default: "proposed", null: false
+    t.integer "interval_months"
+    t.date "next_due_on", null: false
+    t.uuid "organization_id", null: false
+    t.string "priority", default: "medium", null: false
+    t.uuid "property_id", null: false
+    t.integer "reminder_days", default: 7, null: false
+    t.date "starts_on", null: false
+    t.string "status", default: "active", null: false
+    t.string "suggested_responsibility", default: "pending", null: false
+    t.string "title", null: false
+    t.decimal "estimated_cost", precision: 12, scale: 2
+    t.uuid "unit_id"
+    t.datetime "updated_at", null: false
+    t.index ["assigned_to_id"], name: "index_maintenance_schedules_on_assigned_to_id"
+    t.index ["contractor_id"], name: "index_maintenance_schedules_on_contractor_id"
+    t.index ["created_by_id"], name: "index_maintenance_schedules_on_created_by_id"
+    t.index ["organization_id", "property_id", "status"], name: "idx_maint_sched_org_property_status"
+    t.index ["organization_id"], name: "index_maintenance_schedules_on_organization_id"
+    t.index ["property_id"], name: "index_maintenance_schedules_on_property_id"
+    t.index ["unit_id"], name: "index_maintenance_schedules_on_unit_id"
+    t.check_constraint "classification IN ('wear_and_tear','accidental_damage','negligence','misuse','structural_deterioration','preventative_maintenance','breakdown','improvement','compliance_safety','other','undetermined')", name: "maintenance_schedules_classification_check"
+    t.check_constraint "estimated_cost IS NULL OR estimated_cost >= 0", name: "maintenance_schedules_estimated_cost_check"
+    t.check_constraint "frequency IN ('once','monthly','quarterly','semi_annual','annual','custom')", name: "maintenance_schedules_frequency_check"
+    t.check_constraint "generation_mode IN ('automatic','proposed','reminder_only')", name: "maintenance_schedules_generation_mode_check"
+    t.check_constraint "interval_months IS NULL OR interval_months > 0", name: "maintenance_schedules_interval_months_check"
+    t.check_constraint "priority IN ('low','medium','high','urgent')", name: "maintenance_schedules_priority_check"
+    t.check_constraint "reminder_days >= 0", name: "maintenance_schedules_reminder_days_check"
+    t.check_constraint "status IN ('active','paused','completed')", name: "maintenance_schedules_status_check"
+    t.check_constraint "suggested_responsibility IN ('owner','tenant','shared','other','pending')", name: "maintenance_schedules_responsibility_check"
   end
 
   create_table "organizations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -542,9 +667,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_200000) do
   add_foreign_key "maintenance_requests", "organizations"
   add_foreign_key "maintenance_requests", "properties"
   add_foreign_key "maintenance_requests", "rooms"
+  add_foreign_key "maintenance_requests", "leases"
+  add_foreign_key "maintenance_requests", "maintenance_schedules"
+  add_foreign_key "maintenance_requests", "damage_assessments", column: "source_damage_assessment_id"
+  add_foreign_key "maintenance_requests", "inspection_items", column: "source_inspection_item_id"
+  add_foreign_key "maintenance_requests", "inspections", column: "source_inspection_id"
+  add_foreign_key "maintenance_requests", "parties", column: "contractor_id"
   add_foreign_key "maintenance_requests", "units"
+  add_foreign_key "maintenance_requests", "users", column: "approved_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "closed_by_id"
   add_foreign_key "maintenance_requests", "users", column: "assigned_to_id"
   add_foreign_key "maintenance_requests", "users", column: "reported_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "responsibility_reviewed_by_id"
+  add_foreign_key "maintenance_cost_allocations", "maintenance_requests"
+  add_foreign_key "maintenance_cost_allocations", "organizations"
+  add_foreign_key "maintenance_cost_allocations", "parties"
+  add_foreign_key "maintenance_cost_allocations", "users", column: "approved_by_id"
+  add_foreign_key "maintenance_financial_entries", "maintenance_requests"
+  add_foreign_key "maintenance_financial_entries", "organizations"
+  add_foreign_key "maintenance_financial_entries", "parties"
+  add_foreign_key "maintenance_financial_entries", "users", column: "recorded_by_id"
+  add_foreign_key "maintenance_schedules", "organizations"
+  add_foreign_key "maintenance_schedules", "properties"
+  add_foreign_key "maintenance_schedules", "units"
+  add_foreign_key "maintenance_schedules", "parties", column: "contractor_id"
+  add_foreign_key "maintenance_schedules", "users", column: "assigned_to_id"
+  add_foreign_key "maintenance_schedules", "users", column: "created_by_id"
   add_foreign_key "parties", "organizations"
   add_foreign_key "properties", "organizations"
   add_foreign_key "property_assignments", "organizations"

@@ -6,6 +6,7 @@ class Lease < ApplicationRecord
   belongs_to :unit
   belongs_to :tenant, class_name: "Party"
   has_many   :documents, foreign_key: :lease_id, dependent: :destroy
+  has_many   :maintenance_requests
   has_one_attached :lease_pdf
 
   STATUSES   = %w[draft active expired terminated cancelled].freeze
