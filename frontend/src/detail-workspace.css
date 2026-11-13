@@ -166,6 +166,25 @@
 .ownership-share-summary { background: #e7edd0; color: #596b42; font-size: 10px; padding: 9px 11px; }
 .ownership-transfer-modal .modal-actions { flex: 0 0 auto; }
 .ownership-close-modal { width: min(520px, 100%); }
+.lease-panel-heading { align-items: center; gap: 12px; }
+.lease-panel-heading > div { min-width: 0; }
+.lease-panel-heading button { flex: 0 0 auto; padding: 9px 12px; }
+.lease-unit-history { border-top: 1px solid #e1dbd0; padding-top: 15px; }
+.lease-unit-history h4 { color: #26322d; font-size: 13px; margin: 0 0 5px; }
+.lease-row { align-items: center; border-bottom: 1px solid #eae4d9; display: flex; gap: 14px; justify-content: space-between; padding: 12px 0; }
+.lease-row-main, .lease-row-side { display: grid; gap: 5px; min-width: 0; }
+.lease-row-main strong, .lease-row-side strong { color: #26322d; font-size: 11px; }
+.lease-row-main span, .lease-row-main small, .lease-row-side a, .lease-row-side span { color: #87938a; font-size: 10px; line-height: 1.5; }
+.lease-row-main small { text-transform: capitalize; }
+.lease-row-side { justify-items: end; text-align: right; }
+.lease-row-side a { color: #52643c; text-decoration: underline; }
+.lease-history-note, .lease-form-note { color: #687b48; font-size: 10px; line-height: 1.5; margin: 8px 0; }
+.lease-form-note { background: #e7edd0; padding: 10px 12px; }
+.lease-modal { display: flex; flex-direction: column; max-height: calc(100vh - 40px); overflow: hidden; width: min(680px, 100%); }
+.lease-modal .modal-header { flex: 0 0 auto; }
+.lease-form-scroll { flex: 1 1 auto; overflow-y: auto; padding: 3px 4px 0 0; }
+.lease-form-scroll input[type="file"] { font-size: 10px; padding: 8px; }
+.lease-modal .modal-actions { flex: 0 0 auto; }
 @media (max-width: 700px) {
   .ownership-workspace-heading { flex-direction: column; }
   .ownership-actions { width: 100%; }
@@ -173,4 +192,6 @@
   .ownership-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ownership-entry details > summary { gap: 7px; }
   .ownership-verification-badge { font-size: 8px; padding: 4px 6px; }
+  .lease-row { align-items: flex-start; }
+  .lease-row-side { max-width: 45%; }
 }
