@@ -24,6 +24,7 @@ class MaintenanceRequest < ApplicationRecord
   has_many :quotes, class_name: "MaintenanceQuote", dependent: :restrict_with_error
   has_many :invoices, class_name: "MaintenanceInvoice", dependent: :restrict_with_error
   has_many :payments, class_name: "MaintenancePayment", dependent: :restrict_with_error
+  has_many :updates, class_name: "MaintenanceRequestUpdate", dependent: :restrict_with_error
 
   PRIORITIES = %w[low medium high urgent].freeze
   STATUSES = %w[open acknowledged awaiting_approval approved scheduled in_progress resolved closed rejected disputed cancelled].freeze
@@ -54,6 +55,7 @@ class MaintenanceRequest < ApplicationRecord
   validate :status_has_required_reason
   validate :decision_metadata_is_consistent
   validate :approved_allocations_reconcile, if: :approving_responsibility?
+  validate :tenant_submission_starts_unapproved, on: :create
   before_validation :capture_verification_metadata
 
   scope :open,   -> { where(status: %w[open acknowledged awaiting_approval approved scheduled in_progress]) }
@@ -174,5 +176,36 @@ class MaintenanceRequest < ApplicationRecord
     return if scheduled_on.blank? || target_completion_on.blank? || target_completion_on >= scheduled_on
 
     errors.add(:target_completion_on, "cannot be before the scheduled date")
+  end
+
+  def tenant_submission_starts_unapproved
+    return unless source_type == "tenant_request"
+
+    errors.add(:status, "must be open when submitted by a tenant") unless status == "open"
+    errors.add(:classification, "must remain undetermined until management review") unless classification == "undetermined"
+    errors.add(:suggested_responsibility, "must remain unknown until management review") unless suggested_responsibility == "unknown"
+    errors.add(:responsibility_status, "must remain pending review") unless responsibility_status == "pending_review"
+
+    eligible_lease = lease.present? && lease.organization_id == organization_id &&
+      lease.status == "active" && (lease.end_date.blank? || lease.end_date >= Date.current)
+    verified_tenant_account = reported_by && lease &&
+      reported_by.party_accounts.verified.joins(:tenant_profile).exists?(
+        organization_id: organization_id,
+        party_id: lease.tenant_id
+      )
+    unless eligible_lease && verified_tenant_account
+      errors.add(:lease, "must be an eligible verified tenant lease")
+    end
+
+    forbidden_values = [
+      estimated_cost, approved_cost, actual_cost, approved_at, approved_by,
+      responsibility_reviewed_at, responsibility_reviewed_by, assigned_to,
+      contractor, rejected_by, rejected_at, closed_by, verified_by, verified_at,
+      scheduled_on, target_completion_on, approval_notes, responsibility_notes,
+      rejection_reason, cancellation_reason
+    ]
+    if forbidden_values.any?(&:present?) || cost_allocations.any? || financial_entries.any?
+      errors.add(:base, "tenant submissions cannot set internal, assignment, approval, or financial data")
+    end
   end
 end

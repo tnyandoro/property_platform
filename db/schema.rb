@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_13_144000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -118,10 +118,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.uuid "organization_id", null: false
     t.uuid "property_id"
     t.uuid "property_ownership_id"
+    t.datetime "published_at"
+    t.uuid "published_by_id"
     t.string "storage_key", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.uuid "uploaded_by_id", null: false
+    t.string "visibility", default: "internal", null: false
     t.index ["maintenance_financial_entry_id"], name: "index_documents_on_maintenance_financial_entry_id"
     t.index ["maintenance_request_id"], name: "index_documents_on_maintenance_request_id"
     t.index ["organization_id", "document_type"], name: "index_documents_on_organization_id_and_document_type"
@@ -131,8 +134,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["organization_id", "property_ownership_id"], name: "index_documents_on_org_and_property_ownership"
     t.index ["organization_id"], name: "index_documents_on_organization_id"
     t.index ["property_ownership_id"], name: "index_documents_on_property_ownership_id"
+    t.index ["published_by_id"], name: "index_documents_on_published_by_id"
     t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
     t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR maintenance_financial_entry_id IS NOT NULL OR damage_assessment_id IS NOT NULL OR property_ownership_id IS NOT NULL", name: "documents_must_have_parent"
+    t.check_constraint "visibility::text <> 'tenant_visible'::text OR published_at IS NOT NULL AND published_by_id IS NOT NULL", name: "documents_publication_metadata_check"
+    t.check_constraint "visibility::text = ANY (ARRAY['internal'::character varying, 'tenant_visible'::character varying]::text[])", name: "documents_visibility_check"
   end
 
   create_table "inspection_amendments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -254,6 +260,63 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["organization_id"], name: "index_item_types_on_organization_id"
   end
 
+  create_table "lease_extension_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "lease_id", null: false
+    t.uuid "lease_renewal_proposal_id"
+    t.text "message"
+    t.uuid "organization_id", null: false
+    t.uuid "requested_by_id", null: false
+    t.date "requested_end_date"
+    t.datetime "responded_at"
+    t.uuid "responded_by_id"
+    t.text "response_notes"
+    t.string "status", default: "pending", null: false
+    t.uuid "tenant_profile_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["lease_id"], name: "index_lease_extension_requests_on_lease_id"
+    t.index ["lease_renewal_proposal_id"], name: "index_lease_extension_requests_on_lease_renewal_proposal_id"
+    t.index ["organization_id", "lease_id", "status"], name: "idx_lease_extension_requests_scope"
+    t.index ["organization_id"], name: "index_lease_extension_requests_on_organization_id"
+    t.index ["requested_by_id"], name: "index_lease_extension_requests_on_requested_by_id"
+    t.index ["responded_by_id"], name: "index_lease_extension_requests_on_responded_by_id"
+    t.index ["tenant_profile_id"], name: "index_lease_extension_requests_on_tenant_profile_id"
+    t.check_constraint "(responded_at IS NULL) = (responded_by_id IS NULL)", name: "lease_extension_requests_response_metadata_check"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'proposal_created'::character varying, 'rejected'::character varying, 'withdrawn'::character varying, 'closed'::character varying]::text[])", name: "lease_extension_requests_status_check"
+  end
+
+  create_table "lease_renewal_proposals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "created_by_id", null: false
+    t.uuid "document_id"
+    t.datetime "expires_at"
+    t.uuid "lease_id", null: false
+    t.uuid "organization_id", null: false
+    t.date "proposed_end_date", null: false
+    t.decimal "proposed_monthly_rent", precision: 15, scale: 2, null: false
+    t.date "proposed_start_date", null: false
+    t.text "proposed_terms"
+    t.string "rent_currency", default: "ZAR", null: false
+    t.datetime "responded_at"
+    t.uuid "responded_by_id"
+    t.string "response_notes"
+    t.uuid "resulting_lease_id"
+    t.string "status", default: "draft", null: false
+    t.datetime "updated_at", null: false
+    t.integer "version_number", null: false
+    t.index ["created_by_id"], name: "index_lease_renewal_proposals_on_created_by_id"
+    t.index ["document_id"], name: "index_lease_renewal_proposals_on_document_id"
+    t.index ["lease_id", "version_number"], name: "idx_lease_renewal_proposals_version", unique: true
+    t.index ["lease_id"], name: "index_lease_renewal_proposals_on_lease_id"
+    t.index ["organization_id"], name: "index_lease_renewal_proposals_on_organization_id"
+    t.index ["responded_by_id"], name: "index_lease_renewal_proposals_on_responded_by_id"
+    t.index ["resulting_lease_id"], name: "index_lease_renewal_proposals_on_resulting_lease_id", unique: true
+    t.check_constraint "(responded_at IS NULL) = (responded_by_id IS NULL) OR status::text = 'expired'::text", name: "lease_renewal_proposals_response_metadata_check"
+    t.check_constraint "rent_currency::text ~ '^[A-Z]{3}$'::text", name: "lease_renewal_proposals_currency_check"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'offered'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'expired'::character varying, 'withdrawn'::character varying]::text[])", name: "lease_renewal_proposals_status_check"
+    t.check_constraint "version_number > 0 AND proposed_end_date >= proposed_start_date AND proposed_monthly_rent >= 0::numeric", name: "lease_renewal_proposals_terms_check"
+  end
+
   create_table "leases", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.decimal "deposit_amount", precision: 15, scale: 2
@@ -262,6 +325,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.decimal "monthly_rent", precision: 15, scale: 2, null: false
     t.integer "notice_period_days", default: 30
     t.uuid "organization_id", null: false
+    t.uuid "previous_lease_id"
     t.uuid "property_id", null: false
     t.string "rent_currency", default: "ZAR"
     t.date "signed_date"
@@ -275,6 +339,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["organization_id", "tenant_id"], name: "index_leases_on_organization_id_and_tenant_id"
     t.index ["organization_id", "unit_id"], name: "index_leases_on_organization_id_and_unit_id"
     t.index ["organization_id"], name: "index_leases_on_organization_id"
+    t.index ["previous_lease_id"], name: "index_leases_on_previous_lease_id", unique: true
     t.index ["property_id"], name: "index_leases_on_property_id"
     t.index ["tenant_id"], name: "index_leases_on_tenant_id"
     t.index ["unit_id"], name: "index_leases_on_unit_id"
@@ -348,6 +413,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.check_constraint "type IS NULL AND invoice_id IS NULL OR type::text = 'MaintenancePayment'::text AND invoice_id IS NOT NULL OR (type::text = ANY (ARRAY['MaintenanceQuote'::character varying, 'MaintenanceInvoice'::character varying]::text[])) AND invoice_id IS NULL", name: "maintenance_financial_entries_payment_invoice_check"
     t.check_constraint "type IS NULL OR (type::text = ANY (ARRAY['MaintenanceQuote'::character varying, 'MaintenanceInvoice'::character varying, 'MaintenancePayment'::character varying]::text[]))", name: "maintenance_financial_entries_sti_type_check"
     t.check_constraint "type IS NULL OR type::text = 'MaintenanceQuote'::text AND entry_type::text = 'quotation'::text OR type::text = 'MaintenanceInvoice'::text AND entry_type::text = 'invoice'::text OR type::text = 'MaintenancePayment'::text AND entry_type::text = 'payment'::text", name: "maintenance_financial_entries_sti_entry_type_check"
+  end
+
+  create_table "maintenance_request_updates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "author_id", null: false
+    t.text "body", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.uuid "maintenance_request_id", null: false
+    t.uuid "organization_id", null: false
+    t.datetime "published_at"
+    t.uuid "published_by_id"
+    t.datetime "scheduled_end_at"
+    t.datetime "scheduled_start_at"
+    t.string "status", default: "draft", null: false
+    t.string "update_type", default: "update", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_maintenance_request_updates_on_author_id"
+    t.index ["maintenance_request_id"], name: "index_maintenance_request_updates_on_maintenance_request_id"
+    t.index ["organization_id", "maintenance_request_id", "status"], name: "idx_maintenance_updates_request_status"
+    t.index ["organization_id"], name: "index_maintenance_request_updates_on_organization_id"
+    t.index ["published_by_id"], name: "index_maintenance_request_updates_on_published_by_id"
+    t.check_constraint "(scheduled_start_at IS NULL OR scheduled_end_at IS NULL OR scheduled_end_at >= scheduled_start_at) AND (status::text <> 'published'::text OR published_at IS NOT NULL AND published_by_id IS NOT NULL)", name: "maintenance_request_updates_timing_publication_check"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'published'::character varying, 'withdrawn'::character varying]::text[])", name: "maintenance_request_updates_status_check"
+    t.check_constraint "update_type::text = ANY (ARRAY['status'::character varying, 'update'::character varying, 'scheduled_visit'::character varying, 'completion'::character varying]::text[])", name: "maintenance_request_updates_type_check"
   end
 
   create_table "maintenance_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -502,6 +591,44 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["organization_id"], name: "index_parties_on_organization_id"
   end
 
+  create_table "party_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "party_id", null: false
+    t.datetime "revoked_at"
+    t.uuid "revoked_by_id"
+    t.string "status", default: "pending_verification", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.datetime "verified_at"
+    t.uuid "verified_by_id"
+    t.index ["organization_id", "user_id", "party_id"], name: "idx_party_accounts_org_user_party", unique: true
+    t.index ["organization_id"], name: "index_party_accounts_on_organization_id"
+    t.index ["party_id"], name: "index_party_accounts_on_party_id"
+    t.index ["revoked_by_id"], name: "index_party_accounts_on_revoked_by_id"
+    t.index ["user_id"], name: "index_party_accounts_on_user_id"
+    t.index ["verified_by_id"], name: "index_party_accounts_on_verified_by_id"
+    t.check_constraint "(revoked_at IS NULL) = (revoked_by_id IS NULL)", name: "party_accounts_revocation_metadata_check"
+    t.check_constraint "(status::text <> 'verified'::text OR verified_at IS NOT NULL) AND (status::text <> 'revoked'::text OR revoked_at IS NOT NULL)", name: "party_accounts_status_metadata_check"
+    t.check_constraint "(verified_at IS NULL) = (verified_by_id IS NULL)", name: "party_accounts_verification_metadata_check"
+    t.check_constraint "status::text = ANY (ARRAY['pending_verification'::character varying, 'verified'::character varying, 'revoked'::character varying]::text[])", name: "party_accounts_status_check"
+  end
+
+  create_table "platform_administrator_grants", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "granted_by_id", null: false
+    t.string "reason", null: false
+    t.datetime "revoked_at"
+    t.uuid "revoked_by_id"
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.index ["granted_by_id"], name: "index_platform_administrator_grants_on_granted_by_id"
+    t.index ["revoked_by_id"], name: "index_platform_administrator_grants_on_revoked_by_id"
+    t.index ["user_id"], name: "idx_platform_admin_grants_active_user", unique: true, where: "(revoked_at IS NULL)"
+    t.index ["user_id"], name: "index_platform_administrator_grants_on_user_id"
+    t.check_constraint "(revoked_at IS NULL) = (revoked_by_id IS NULL)", name: "platform_admin_grants_revocation_metadata_check"
+  end
+
   create_table "properties", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "address_line_1"
     t.string "address_line_2"
@@ -534,6 +661,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
 
   create_table "property_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "assignment_type", null: false
+    t.string "capabilities", default: [], null: false, array: true
     t.datetime "created_at", null: false
     t.datetime "ends_at"
     t.uuid "organization_id", null: false
@@ -546,6 +674,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["organization_id"], name: "index_property_assignments_on_organization_id"
     t.index ["property_id"], name: "index_property_assignments_on_property_id"
     t.index ["user_id"], name: "index_property_assignments_on_user_id"
+    t.check_constraint "capabilities <@ ARRAY['invite_tenants'::character varying, 'propose_lease_renewals'::character varying, 'publish_tenant_information'::character varying]", name: "property_assignments_capabilities_check"
   end
 
   create_table "property_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -604,6 +733,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.check_constraint "verification_status::text = ANY (ARRAY['unverified'::character varying, 'pending_review'::character varying, 'verified'::character varying]::text[])", name: "property_ownerships_verification_status_check"
   end
 
+  create_table "property_photos", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "caption"
+    t.datetime "created_at", null: false
+    t.uuid "organization_id", null: false
+    t.integer "position", default: 0, null: false
+    t.uuid "property_id", null: false
+    t.datetime "published_at"
+    t.uuid "published_by_id"
+    t.datetime "updated_at", null: false
+    t.uuid "uploaded_by_id", null: false
+    t.string "visibility", default: "internal", null: false
+    t.index ["organization_id", "property_id", "visibility", "position"], name: "idx_property_photos_tenant_visibility"
+    t.index ["organization_id"], name: "index_property_photos_on_organization_id"
+    t.index ["property_id"], name: "index_property_photos_on_property_id"
+    t.index ["published_by_id"], name: "index_property_photos_on_published_by_id"
+    t.index ["uploaded_by_id"], name: "index_property_photos_on_uploaded_by_id"
+    t.check_constraint "(visibility::text = ANY (ARRAY['internal'::character varying, 'tenant_visible'::character varying]::text[])) AND \"position\" >= 0", name: "property_photos_visibility_position_check"
+    t.check_constraint "visibility::text <> 'tenant_visible'::text OR published_at IS NOT NULL AND published_by_id IS NOT NULL", name: "property_photos_publication_metadata_check"
+  end
+
   create_table "rooms", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "building_id", null: false
     t.string "condition"
@@ -629,6 +778,74 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
     t.index ["unit_id", "status"], name: "index_rooms_on_unit_id_and_status"
     t.index ["unit_id"], name: "index_rooms_on_unit_id"
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'inactive'::character varying::text, 'under_maintenance'::character varying::text])", name: "rooms_status_check"
+  end
+
+  create_table "tenant_invitations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "accepted_at"
+    t.uuid "accepted_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "expired_at"
+    t.datetime "expires_at", null: false
+    t.uuid "invited_by_id", null: false
+    t.uuid "lease_id", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "property_id", null: false
+    t.datetime "revoked_at"
+    t.uuid "revoked_by_id"
+    t.string "status", default: "pending", null: false
+    t.string "target_email", null: false
+    t.uuid "tenant_party_id", null: false
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accepted_user_id"], name: "index_tenant_invitations_on_accepted_user_id"
+    t.index ["invited_by_id"], name: "index_tenant_invitations_on_invited_by_id"
+    t.index ["lease_id"], name: "index_tenant_invitations_on_lease_id"
+    t.index ["organization_id", "lease_id", "target_email"], name: "idx_tenant_invitations_pending_email", unique: true, where: "((status)::text = 'pending'::text)"
+    t.index ["organization_id"], name: "index_tenant_invitations_on_organization_id"
+    t.index ["property_id"], name: "index_tenant_invitations_on_property_id"
+    t.index ["revoked_by_id"], name: "index_tenant_invitations_on_revoked_by_id"
+    t.index ["tenant_party_id"], name: "index_tenant_invitations_on_tenant_party_id"
+    t.index ["token_digest"], name: "index_tenant_invitations_on_token_digest", unique: true
+    t.check_constraint "(accepted_at IS NULL) = (accepted_user_id IS NULL)", name: "tenant_invitations_acceptance_metadata_check"
+    t.check_constraint "(revoked_at IS NULL) = (revoked_by_id IS NULL)", name: "tenant_invitations_revocation_metadata_check"
+    t.check_constraint "(status::text <> 'accepted'::text OR accepted_at IS NOT NULL) AND (status::text <> 'revoked'::text OR revoked_at IS NOT NULL) AND (status::text <> 'expired'::text OR expired_at IS NOT NULL)", name: "tenant_invitations_status_metadata_check"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'accepted'::character varying, 'revoked'::character varying, 'expired'::character varying]::text[])", name: "tenant_invitations_status_check"
+  end
+
+  create_table "tenant_notifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.uuid "lease_extension_request_id"
+    t.uuid "lease_id"
+    t.uuid "lease_renewal_proposal_id"
+    t.uuid "maintenance_request_update_id"
+    t.string "notification_type", null: false
+    t.uuid "organization_id", null: false
+    t.datetime "read_at"
+    t.uuid "tenant_profile_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["lease_extension_request_id"], name: "index_tenant_notifications_on_lease_extension_request_id"
+    t.index ["lease_id"], name: "index_tenant_notifications_on_lease_id"
+    t.index ["lease_renewal_proposal_id"], name: "index_tenant_notifications_on_lease_renewal_proposal_id"
+    t.index ["maintenance_request_update_id"], name: "index_tenant_notifications_on_maintenance_request_update_id"
+    t.index ["organization_id", "tenant_profile_id", "created_at"], name: "idx_tenant_notifications_profile"
+    t.index ["organization_id"], name: "index_tenant_notifications_on_organization_id"
+    t.index ["tenant_profile_id"], name: "index_tenant_notifications_on_tenant_profile_id"
+    t.check_constraint "notification_type::text = ANY (ARRAY['lease_expiring'::character varying, 'lease_renewal_proposal'::character varying, 'lease_extension_request'::character varying, 'maintenance_request_update'::character varying]::text[])", name: "tenant_notifications_type_check"
+    t.check_constraint "num_nonnulls(lease_id, lease_renewal_proposal_id, lease_extension_request_id, maintenance_request_update_id) = 1", name: "tenant_notifications_single_source_check"
+  end
+
+  create_table "tenant_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "party_account_id", null: false
+    t.string "phone_number"
+    t.string "tenant_reference"
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "tenant_reference"], name: "idx_tenant_profiles_org_reference", unique: true, where: "(tenant_reference IS NOT NULL)"
+    t.index ["organization_id"], name: "index_tenant_profiles_on_organization_id"
+    t.index ["party_account_id"], name: "index_tenant_profiles_on_party_account_id", unique: true
   end
 
   create_table "units", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -665,13 +882,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
+    t.datetime "email_verified_at"
     t.string "first_name", null: false
     t.string "last_name", null: false
     t.uuid "organization_id", null: false
+    t.string "organization_role", default: "member", null: false
     t.string "password_digest"
     t.datetime "updated_at", null: false
     t.index ["organization_id", "email"], name: "index_users_on_organization_id_and_email", unique: true
     t.index ["organization_id"], name: "index_users_on_organization_id"
+    t.check_constraint "organization_role::text = ANY (ARRAY['member'::character varying, 'administrator'::character varying]::text[])", name: "users_organization_role_check"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -689,6 +909,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   add_foreign_key "documents", "maintenance_requests"
   add_foreign_key "documents", "organizations"
   add_foreign_key "documents", "property_ownerships"
+  add_foreign_key "documents", "users", column: "published_by_id"
   add_foreign_key "documents", "users", column: "uploaded_by_id"
   add_foreign_key "inspection_amendments", "inspection_items"
   add_foreign_key "inspection_amendments", "inspections"
@@ -709,6 +930,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   add_foreign_key "inspections", "properties"
   add_foreign_key "inspections", "users", column: "inspector_id"
   add_foreign_key "item_types", "organizations"
+  add_foreign_key "lease_extension_requests", "lease_renewal_proposals"
+  add_foreign_key "lease_extension_requests", "leases"
+  add_foreign_key "lease_extension_requests", "organizations"
+  add_foreign_key "lease_extension_requests", "tenant_profiles"
+  add_foreign_key "lease_extension_requests", "users", column: "requested_by_id"
+  add_foreign_key "lease_extension_requests", "users", column: "responded_by_id"
+  add_foreign_key "lease_renewal_proposals", "documents"
+  add_foreign_key "lease_renewal_proposals", "leases"
+  add_foreign_key "lease_renewal_proposals", "leases", column: "resulting_lease_id"
+  add_foreign_key "lease_renewal_proposals", "organizations"
+  add_foreign_key "lease_renewal_proposals", "users", column: "created_by_id"
+  add_foreign_key "lease_renewal_proposals", "users", column: "responded_by_id"
+  add_foreign_key "leases", "leases", column: "previous_lease_id"
   add_foreign_key "leases", "organizations"
   add_foreign_key "leases", "parties", column: "tenant_id"
   add_foreign_key "leases", "properties"
@@ -725,6 +959,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   add_foreign_key "maintenance_financial_entries", "parties"
   add_foreign_key "maintenance_financial_entries", "users", column: "decision_by_id"
   add_foreign_key "maintenance_financial_entries", "users", column: "recorded_by_id"
+  add_foreign_key "maintenance_request_updates", "maintenance_requests"
+  add_foreign_key "maintenance_request_updates", "organizations"
+  add_foreign_key "maintenance_request_updates", "users", column: "author_id"
+  add_foreign_key "maintenance_request_updates", "users", column: "published_by_id"
   add_foreign_key "maintenance_requests", "damage_assessments", column: "source_damage_assessment_id"
   add_foreign_key "maintenance_requests", "inspection_items", column: "source_inspection_item_id"
   add_foreign_key "maintenance_requests", "inspections", column: "source_inspection_id"
@@ -750,6 +988,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   add_foreign_key "maintenance_schedules", "users", column: "assigned_to_id"
   add_foreign_key "maintenance_schedules", "users", column: "created_by_id"
   add_foreign_key "parties", "organizations"
+  add_foreign_key "party_accounts", "organizations"
+  add_foreign_key "party_accounts", "parties"
+  add_foreign_key "party_accounts", "users"
+  add_foreign_key "party_accounts", "users", column: "revoked_by_id"
+  add_foreign_key "party_accounts", "users", column: "verified_by_id"
+  add_foreign_key "platform_administrator_grants", "users"
+  add_foreign_key "platform_administrator_grants", "users", column: "granted_by_id"
+  add_foreign_key "platform_administrator_grants", "users", column: "revoked_by_id"
   add_foreign_key "properties", "organizations"
   add_foreign_key "property_assignments", "organizations"
   add_foreign_key "property_assignments", "properties"
@@ -764,10 +1010,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   add_foreign_key "property_ownerships", "parties"
   add_foreign_key "property_ownerships", "properties"
   add_foreign_key "property_ownerships", "users", column: "verified_by_id"
+  add_foreign_key "property_photos", "organizations"
+  add_foreign_key "property_photos", "properties"
+  add_foreign_key "property_photos", "users", column: "published_by_id"
+  add_foreign_key "property_photos", "users", column: "uploaded_by_id"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "rooms", "organizations"
   add_foreign_key "rooms", "properties"
   add_foreign_key "rooms", "units"
+  add_foreign_key "tenant_invitations", "leases"
+  add_foreign_key "tenant_invitations", "organizations"
+  add_foreign_key "tenant_invitations", "parties", column: "tenant_party_id"
+  add_foreign_key "tenant_invitations", "properties"
+  add_foreign_key "tenant_invitations", "users", column: "accepted_user_id"
+  add_foreign_key "tenant_invitations", "users", column: "invited_by_id"
+  add_foreign_key "tenant_invitations", "users", column: "revoked_by_id"
+  add_foreign_key "tenant_notifications", "lease_extension_requests"
+  add_foreign_key "tenant_notifications", "lease_renewal_proposals"
+  add_foreign_key "tenant_notifications", "leases"
+  add_foreign_key "tenant_notifications", "maintenance_request_updates"
+  add_foreign_key "tenant_notifications", "organizations"
+  add_foreign_key "tenant_notifications", "tenant_profiles"
+  add_foreign_key "tenant_profiles", "organizations"
+  add_foreign_key "tenant_profiles", "party_accounts"
   add_foreign_key "units", "buildings"
   add_foreign_key "units", "organizations"
   add_foreign_key "units", "properties"

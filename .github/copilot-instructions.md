@@ -11,3 +11,9 @@ For all work involving property maintenance, maintenance requests/work orders, r
 7. Implement and test backend and frontend changes consistently. Report migrations, API changes, tests and remaining decisions.
 
 If a task appears to conflict with the specification, explain the conflict and ask for clarification instead of silently overriding the documented design.
+
+For any work involving tenant invitations or activation, tenant profiles, tenant-facing property or document visibility, lease renewals, the tenant workspace, or tenant maintenance submissions:
+
+1. Read `docs/TENANT_SELF_SERVICE_SPEC.md` in addition to the maintenance specification when the change touches maintenance.
+2. Keep tenant authorization and data access separate from management portfolio access; do not rely on frontend visibility controls.
+3. Keep tenant-submitted maintenance requests distinct from management work approval, expenditure approval and responsibility allocation.

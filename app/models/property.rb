@@ -15,6 +15,8 @@ class Property < ApplicationRecord
   has_many :maintenance_schedules
   has_many :damage_assessments
   has_many :documents
+  has_many :property_photos, dependent: :restrict_with_error
+  has_many :tenant_invitations, dependent: :restrict_with_error
 
   validates :name, :property_type, presence: true
   validates :cached_total_units, :cached_total_bedrooms,
