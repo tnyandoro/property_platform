@@ -5,7 +5,11 @@ module Api
       include DocumentSerialization
       include PropertyManagerAuthorization
 
-      before_action :set_request, only: %i[show update acknowledge submit_for_approval approve reject schedule start complete close cancel dispute_responsibility allocate_costs add_financial_entry]
+      before_action :set_request, only: %i[
+        show update assign acknowledge submit_for_approval approve reject schedule start
+        complete verify close cancel dispute_responsibility allocate_costs add_financial_entry
+        create_quote create_invoice create_payment mark_payment_paid
+      ]
 
       def index
         return head :forbidden unless MaintenanceRequestPolicy.new(current_user, property).index?
@@ -25,7 +29,7 @@ module Api
         requests = requests.overdue if params[:filter] == "overdue"
         requests = requests.where("scheduled_on >= ?", Date.iso8601(params[:from])) if params[:from].present?
         requests = requests.where("scheduled_on <= ?", Date.iso8601(params[:to])) if params[:to].present?
-        render json: requests.map { |request| maintenance_request_payload(request) }
+        render json: maintenance_request_payloads(requests)
       rescue ArgumentError
         render json: { error: "Invalid date or filter value." }, status: :bad_request
       end
@@ -37,18 +41,17 @@ module Api
       end
 
       def create
-        return unless authorize_active_property_manager
+        return unless authorize_request_manager
 
-        request = property.maintenance_requests.new(
-          maintenance_request_params.except(:unit_id, :room_id, :lease_id, :contractor_id, :source_inspection_id, :source_inspection_item_id, :source_damage_assessment_id)
-            .merge(organization: current_organization, reported_by: current_user)
+        request = MaintenanceRequestCreator.call(
+          property: property,
+          organization: current_organization,
+          actor: current_user,
+          attributes: maintenance_request_params
         )
-        assign_associations(request)
-        if request.save
-          render json: maintenance_request_payload(request), status: :created
-        else
-          render json: { errors: request.errors.full_messages }, status: :unprocessable_entity
-        end
+        render json: maintenance_request_payload(request), status: :created
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       rescue ActiveRecord::RecordNotFound
         render json: { error: "A linked record was not found for this property." }, status: :unprocessable_entity
       rescue ActiveRecord::RecordNotUnique
@@ -56,12 +59,16 @@ module Api
       end
 
       def update
-        return unless authorize_active_property_manager
+        return unless authorize_request_manager
 
-        @request.assign_attributes(
-          maintenance_request_params.except(:unit_id, :room_id, :lease_id, :contractor_id, :source_inspection_id, :source_inspection_item_id, :source_damage_assessment_id)
+        attributes = maintenance_request_params
+        @request.assign_attributes(attributes.except(*MaintenanceRequestAssociationAssigner::ASSOCIATION_KEYS))
+        MaintenanceRequestAssociationAssigner.call(
+          request: @request,
+          property: property,
+          organization: current_organization,
+          attributes: attributes
         )
-        assign_associations(@request)
         if @request.save
           render json: maintenance_request_payload(@request)
         else
@@ -74,188 +81,194 @@ module Api
       end
 
       def acknowledge
-        transition!("open", "acknowledged", acknowledged_at: Time.current)
+        run_workflow(:acknowledge)
       end
 
       def submit_for_approval
-        transition!(%w[open acknowledged], "awaiting_approval")
+        run_workflow(:submit_for_approval)
       end
 
       def approve
-        return unless authorize_active_property_manager
-        return invalid_transition unless @request.status == "awaiting_approval"
-
-        approved_cost = decimal_amount(params.require(:approved_cost))
-        return render json: { error: "approved_cost must be a non-negative amount." }, status: :unprocessable_entity unless approved_cost&.finite? && approved_cost >= 0
-
-        if @request.update(
-          status: "approved",
-          approved_cost: approved_cost,
-          approval_notes: params[:comments],
-          approved_by: current_user,
-          approved_at: Time.current
-        )
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+        run_workflow(:approve, approved_cost: params.require(:approved_cost), comments: params[:comments])
       rescue ActionController::ParameterMissing
         render json: { error: "approved_cost is required." }, status: :bad_request
       end
 
       def reject
-        return unless authorize_active_property_manager
-        return invalid_transition unless @request.status == "awaiting_approval"
-
-        @request.update!(status: "rejected", rejection_reason: params.require(:reason))
-        render json: maintenance_request_payload(@request)
+        run_workflow(:reject, reason: params.require(:reason))
       rescue ActionController::ParameterMissing
         render json: { error: "reason is required." }, status: :bad_request
-      rescue ActiveRecord::RecordInvalid => error
-        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       def schedule
-        return unless authorize_active_property_manager
-        return invalid_transition unless %w[approved acknowledged open].include?(@request.status)
-
-        if @request.update(scheduled_on: params.require(:scheduled_on), target_completion_on: params[:target_completion_on], status: "scheduled")
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+        run_workflow(:schedule, scheduled_on: params.require(:scheduled_on), target_completion_on: params[:target_completion_on])
       rescue ActionController::ParameterMissing
         render json: { error: "scheduled_on is required." }, status: :bad_request
       end
 
       def start
-        transition!(%w[scheduled approved acknowledged], "in_progress", actual_started_at: Time.current)
+        run_workflow(:start)
       end
 
       def complete
-        return unless authorize_active_property_manager
-        return invalid_transition unless @request.status == "in_progress"
+        run_workflow(:complete, complete_params.to_h)
+      end
 
-        if @request.update(complete_params.merge(status: "resolved", resolved_at: Time.current))
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+      def verify
+        run_workflow(:verify)
       end
 
       def close
-        transition!("resolved", "closed", closed_at: Time.current, closed_by: current_user)
+        run_workflow(:close)
       end
 
       def cancel
-        return unless authorize_active_property_manager
-        return invalid_transition if %w[closed cancelled].include?(@request.status)
-
-        if @request.update(status: "cancelled", cancellation_reason: params.require(:reason))
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+        run_workflow(:cancel, reason: params.require(:reason))
       rescue ActionController::ParameterMissing
         render json: { error: "reason is required." }, status: :bad_request
       end
 
       def dispute_responsibility
-        return unless authorize_active_property_manager
-
-        rationale = params.require(:rationale)
-        if @request.update(
-          responsibility_status: "disputed",
-          responsibility_notes: rationale,
-          responsibility_reviewed_by: current_user,
-          responsibility_reviewed_at: Time.current
-        )
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+        run_workflow(:dispute_responsibility, rationale: params.require(:rationale))
       rescue ActionController::ParameterMissing
         render json: { error: "rationale is required." }, status: :bad_request
       end
 
+      def assign
+        run_workflow(:assign, assignment_params.to_h)
+      end
+
       def allocate_costs
-        return unless authorize_active_property_manager
-        return render json: { error: "Cost responsibility is already approved. Dispute it before recording a revised allocation." }, status: :unprocessable_entity if @request.responsibility_status == "approved"
-        return render json: { error: "An approved cost is required before allocating responsibility." }, status: :unprocessable_entity if @request.approved_cost.blank?
+        return unless authorize_request_manager
 
         allocations = params.require(:allocations)
         unless allocations.is_a?(Array) && allocations.all? { |allocation| allocation.is_a?(Hash) || allocation.is_a?(ActionController::Parameters) }
           return render json: { error: "Allocations must be a list of allocation records." }, status: :unprocessable_entity
         end
-        return render json: { error: "At least one allocation is required." }, status: :unprocessable_entity if allocations.empty?
-        if allocations.any? { |allocation| (allocation[:currency].presence || @request.currency) != @request.currency }
-          return render json: { error: "Allocation currencies must match the work order currency." }, status: :unprocessable_entity
-        end
-
-        amounts = allocations.map { |allocation| decimal_amount(allocation[:allocated_amount]) }
-        unless amounts.all? { |amount| amount&.finite? && amount >= 0 }
-          return render json: { error: "Allocation amounts must be valid non-negative amounts." }, status: :unprocessable_entity
-        end
-
-        @request.with_lock do
-          total = amounts.sum
-          unless total == @request.approved_cost
-            return render json: { error: "Allocations must equal the approved cost." }, status: :unprocessable_entity
+        allocations = allocations.map do |allocation|
+          permitted_keys = %i[
+            responsible_party allocated_amount allocation_percentage currency
+            party_id lease_id property_ownership_id
+          ]
+          if allocation.is_a?(ActionController::Parameters)
+            allocation.permit(*permitted_keys)
+          else
+            ActionController::Parameters.new(allocation).permit(*permitted_keys)
           end
-          @request.cost_allocations.where(status: "approved").each { |allocation| allocation.update!(status: "superseded") } if @request.responsibility_status == "disputed"
-          allocations.each do |attributes|
-            party = current_organization.parties.find(attributes[:party_id]) if attributes[:party_id].present?
-            @request.cost_allocations.create!(
-              organization: current_organization,
-              responsible_party: attributes.fetch(:responsible_party),
-              allocated_amount: attributes.fetch(:allocated_amount),
-              currency: attributes[:currency].presence || @request.currency,
-              rationale: params.require(:rationale),
-              party: party,
-              approved_by: current_user
-            )
-          end
-          @request.update!(
-            responsibility_status: "approved",
-            responsibility_notes: params.require(:rationale),
-            responsibility_reviewed_by: current_user,
-            responsibility_reviewed_at: Time.current
-          )
         end
+        MaintenanceCostAllocator.call(
+          request: @request,
+          allocations: allocations,
+          actor: current_user,
+          rationale: params.require(:rationale)
+        )
         render json: maintenance_request_payload(@request)
       rescue ActionController::ParameterMissing, KeyError => error
         render json: { error: "#{error.message} is required." }, status: :bad_request
+      rescue MaintenanceCostAllocator::InvalidAllocation => error
+        render json: { error: error.message }, status: :unprocessable_entity
       rescue ActiveRecord::RecordNotFound
-        render json: { error: "Party not found in this organization." }, status: :unprocessable_entity
+        render json: { error: "A linked party, lease, or ownership record was not found for this property." }, status: :unprocessable_entity
       rescue ActiveRecord::RecordInvalid => error
         render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       def add_financial_entry
-        return unless authorize_active_property_manager
+        return unless authorize_request_manager
 
-        attributes = financial_entry_params
-        entry = @request.financial_entries.new(
-          attributes.merge(
-            organization: current_organization,
-            recorded_by: current_user,
-            currency: attributes[:currency].presence || @request.currency
-          )
+        entry = MaintenanceFinancialEntryRecorder.call_legacy(
+          request: @request,
+          actor: current_user,
+          attributes: financial_entry_params
         )
-        entry.party = current_organization.parties.find(attributes[:party_id]) if attributes[:party_id].present?
-        if entry.save
-          render json: financial_entry_payload(entry), status: :created
-        else
-          render json: { errors: entry.errors.full_messages }, status: :unprocessable_entity
-        end
+        render json: financial_entry_payload(entry), status: :created
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Party not found in this organization." }, status: :unprocessable_entity
       end
 
+      def create_quote
+        record_typed_financial_entry(
+          "quotation",
+          :quote,
+          %i[amount currency occurred_on valid_until reference notes party_id]
+        )
+      end
+
+      def create_invoice
+        record_typed_financial_entry(
+          "invoice",
+          :invoice,
+          %i[amount currency occurred_on due_on invoice_reference reference notes party_id]
+        )
+      end
+
+      def create_payment
+        record_typed_financial_entry(
+          "payment",
+          :payment,
+          %i[amount currency occurred_on invoice_id reference notes party_id status]
+        )
+      end
+
+      def mark_payment_paid
+        return unless authorize_request_manager
+
+        payment = @request.payments.find(params[:payment_id])
+        MaintenancePaymentStatusUpdater.call(payment: payment)
+        render json: financial_entry_payload(payment)
+      rescue MaintenancePaymentStatusUpdater::InvalidTransition => error
+        render json: { error: error.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
+      end
+
       private
+
+      def record_typed_financial_entry(entry_type, parameter_name, permitted_keys)
+        return unless authorize_request_manager
+
+        attributes = params.require(parameter_name).permit(*permitted_keys).to_h
+          .merge(entry_type: entry_type)
+        entry = MaintenanceFinancialEntryRecorder.call(
+          request: @request,
+          actor: current_user,
+          attributes: attributes
+        )
+        render json: financial_entry_payload(entry), status: :created
+      rescue MaintenanceFinancialEntryRecorder::InvalidEntry => error
+        render json: { error: error.message }, status: :unprocessable_entity
+      rescue ActionController::ParameterMissing => error
+        render json: { error: "#{error.param} is required." }, status: :bad_request
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "A linked party or invoice was not found for this work order." }, status: :unprocessable_entity
+      end
 
       def set_request
         @request = property.maintenance_requests.includes(:cost_allocations, :financial_entries, :documents).find(params[:maintenance_request_id])
+      end
+
+      def maintenance_request_payloads(requests)
+        records = requests.to_a
+        audit_logs = AuditLog.where(
+          organization_id: current_organization.id,
+          auditable_type: "MaintenanceRequest",
+          auditable_id: records.map(&:id)
+        ).order(:occurred_at).group_by(&:auditable_id)
+        blobs_by_key = ActiveStorage::Blob.where(
+          key: records.flat_map { |request| request.documents.map(&:storage_key) }
+        ).index_by(&:key)
+
+        records.map do |request|
+          maintenance_request_payload(
+            request,
+            audit_logs: audit_logs.fetch(request.id, []),
+            blobs_by_key: blobs_by_key
+          )
+        end
       end
 
       def maintenance_request_params
@@ -268,52 +281,51 @@ module Api
         )
       end
 
-      def assign_associations(request)
-        values = maintenance_request_params
-        request.unit = values[:unit_id].present? ? property.units.find(values[:unit_id]) : nil if values.key?(:unit_id)
-        request.room = values[:room_id].present? ? property.rooms.find(values[:room_id]) : nil if values.key?(:room_id)
-        request.lease = values[:lease_id].present? ? property.leases.find(values[:lease_id]) : nil if values.key?(:lease_id)
-        request.unit ||= request.room.unit if request.room
-        request.unit ||= request.lease.unit if request.lease
-        request.contractor = values[:contractor_id].present? ? current_organization.parties.find(values[:contractor_id]) : nil if values.key?(:contractor_id)
-        request.source_inspection = values[:source_inspection_id].present? ? property.inspections.find(values[:source_inspection_id]) : nil if values.key?(:source_inspection_id)
-        request.source_type = "inspection" if request.source_inspection
-        if values[:source_inspection_item_id].present?
-          request.source_inspection_item = InspectionItem.joins(:inspection)
-            .where(organization_id: current_organization.id, inspections: { property_id: property.id })
-            .find(values[:source_inspection_item_id])
-          request.source_inspection ||= request.source_inspection_item.inspection
-          request.source_type = "inspection"
-        end
-        request.source_damage_assessment = values[:source_damage_assessment_id].present? ? property.damage_assessments.find(values[:source_damage_assessment_id]) : nil if values.key?(:source_damage_assessment_id)
-        request.source_type = "damage_assessment" if request.source_damage_assessment
-      end
-
       def complete_params
         params.permit(:actual_cost, :resolution_notes)
       end
 
+      def assignment_params
+        params.require(:assignment).permit(:assigned_to_id, :contractor_id)
+      end
+
       def financial_entry_params
-        params.require(:financial_entry).permit(:entry_type, :amount, :currency, :occurred_on, :reference, :notes, :party_id)
+        params.require(:financial_entry).permit(
+          :entry_type, :amount, :currency, :occurred_on, :reference, :notes, :party_id,
+          :valid_until, :due_on, :invoice_reference, :invoice_id
+        )
       end
 
       def decimal_amount(value)
         BigDecimal(value.to_s, exception: false)
       end
 
-      def transition!(from, to, attributes = {})
-        return unless authorize_active_property_manager
-        return invalid_transition unless Array(from).include?(@request.status)
+      def run_workflow(action, attributes = {})
+        return unless authorize_request_manager
 
-        if @request.update(attributes.merge(status: to))
-          render json: maintenance_request_payload(@request)
-        else
-          render json: { errors: @request.errors.full_messages }, status: :unprocessable_entity
-        end
+        MaintenanceRequestWorkflow.call(
+          request: @request,
+          action: action,
+          actor: current_user,
+          attributes: attributes
+        )
+        render json: maintenance_request_payload(@request)
+      rescue MaintenanceRequestWorkflow::InvalidTransition
+        render json: { error: "This status transition is not allowed." }, status: :unprocessable_entity
+      rescue MaintenanceRequestWorkflow::InvalidInput => error
+        render json: { error: error.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "A linked assignee or contractor was not found for this organization." }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
-      def invalid_transition
-        render json: { error: "This status transition is not allowed." }, status: :unprocessable_entity
+      def authorize_request_manager
+        policy = MaintenanceRequestPolicy.new(current_user, @request || property)
+        return true if policy.manage?
+
+        render json: { error: "Only an active property manager can manage property records." }, status: :forbidden
+        false
       end
     end
   end

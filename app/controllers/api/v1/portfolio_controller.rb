@@ -18,7 +18,10 @@ module Api
           assignments: property.property_assignments.includes(:user).map { |record| assignment_payload(record) },
           inspections: property.inspections.map { |inspection| inspection_payload(inspection) },
           leases:      property.leases.includes(:tenant).with_attached_lease_pdf.map { |lease| lease_payload(lease) },
-          maintenance: property.maintenance_requests.order(reported_at: :desc).map { |req| maintenance_payload(req) },
+          maintenance: property.maintenance_requests
+            .includes(:cost_allocations, :financial_entries)
+            .order(reported_at: :desc)
+            .map { |req| maintenance_payload(req) },
           damage_assessments: property.damage_assessments.order(assessed_on: :desc).map { |assessment| damage_assessment_payload(assessment) }
         }
       end
@@ -114,11 +117,61 @@ module Api
         {
           id:          req.id,
           title:       req.title,
+          description: req.description,
           category:    req.category,
           priority:    req.priority,
           status:      req.status,
+          classification: req.classification,
+          suggested_responsibility: req.suggested_responsibility,
+          responsibility_status: req.responsibility_status,
+          responsibility_notes: req.responsibility_notes,
+          responsibility_reviewed_by_id: req.responsibility_reviewed_by_id,
+          responsibility_reviewed_at: req.responsibility_reviewed_at,
+          source_type: req.source_type,
+          source_inspection_id: req.source_inspection_id,
+          source_inspection_item_id: req.source_inspection_item_id,
+          source_damage_assessment_id: req.source_damage_assessment_id,
+          unit_id: req.unit_id,
+          room_id: req.room_id,
+          lease_id: req.lease_id,
+          contractor_id: req.contractor_id,
+          assigned_to_id: req.assigned_to_id,
           reported_at: req.reported_at,
-          resolved_at: req.resolved_at
+          scheduled_on: req.scheduled_on,
+          target_completion_on: req.target_completion_on,
+          actual_started_at: req.actual_started_at,
+          resolved_at: req.resolved_at,
+          verified_by_id: req.verified_by_id,
+          verified_at: req.verified_at,
+          closed_by_id: req.closed_by_id,
+          closed_at: req.closed_at,
+          estimated_cost: req.estimated_cost,
+          approved_cost: req.approved_cost,
+          approved_by_id: req.approved_by_id,
+          approved_at: req.approved_at,
+          actual_cost: req.actual_cost,
+          currency: req.currency,
+          cost_allocations: req.cost_allocations.map do |allocation|
+            {
+              responsible_party: allocation.responsible_party,
+              status: allocation.status,
+              allocated_amount: allocation.allocated_amount,
+              allocation_percentage: allocation.allocation_percentage,
+              currency: allocation.currency,
+              party_id: allocation.party_id
+            }
+          end,
+          financial_entries: req.financial_entries.map do |entry|
+            {
+              entry_type: entry.entry_type,
+              amount: entry.amount,
+              currency: entry.currency,
+              status: entry.status,
+              occurred_on: entry.occurred_on,
+              invoice_id: entry.invoice_id,
+              invoice_reference: entry.invoice_reference
+            }
+          end
         }
       end
 

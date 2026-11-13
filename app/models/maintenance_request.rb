@@ -15,10 +15,15 @@ class MaintenanceRequest < ApplicationRecord
   belongs_to :maintenance_schedule, optional: true
   belongs_to :approved_by, class_name: "User", optional: true
   belongs_to :responsibility_reviewed_by, class_name: "User", optional: true
+  belongs_to :rejected_by, class_name: "User", optional: true
   belongs_to :closed_by, class_name: "User", optional: true
+  belongs_to :verified_by, class_name: "User", optional: true
   has_many :documents, foreign_key: :maintenance_request_id
   has_many :cost_allocations, class_name: "MaintenanceCostAllocation", dependent: :restrict_with_error
   has_many :financial_entries, class_name: "MaintenanceFinancialEntry", dependent: :restrict_with_error
+  has_many :quotes, class_name: "MaintenanceQuote", dependent: :restrict_with_error
+  has_many :invoices, class_name: "MaintenanceInvoice", dependent: :restrict_with_error
+  has_many :payments, class_name: "MaintenancePayment", dependent: :restrict_with_error
 
   PRIORITIES = %w[low medium high urgent].freeze
   STATUSES = %w[open acknowledged awaiting_approval approved scheduled in_progress resolved closed rejected disputed cancelled].freeze
@@ -26,6 +31,7 @@ class MaintenanceRequest < ApplicationRecord
     wear_and_tear accidental_damage negligence misuse structural_deterioration
     preventative_maintenance breakdown improvement compliance_safety other undetermined
   ].freeze
+  SUGGESTED_RESPONSIBILITIES = %w[owner tenant shared organization third_party unknown].freeze
   RESPONSIBILITY_STATUSES = %w[pending_review approved disputed].freeze
   SOURCE_TYPES = %w[tenant_request schedule inspection damage_assessment manager other].freeze
 
@@ -34,6 +40,7 @@ class MaintenanceRequest < ApplicationRecord
   validates :status,      inclusion: { in: STATUSES }
   validates :reported_at, presence: true
   validates :classification, inclusion: { in: CLASSIFICATIONS }
+  validates :suggested_responsibility, inclusion: { in: SUGGESTED_RESPONSIBILITIES }
   validates :responsibility_status, inclusion: { in: RESPONSIBILITY_STATUSES }
   validates :source_type, inclusion: { in: SOURCE_TYPES }
   validates :currency, presence: true
@@ -45,6 +52,9 @@ class MaintenanceRequest < ApplicationRecord
   validate :schedule_occurrence_is_present
   validate :target_completion_is_not_before_schedule
   validate :status_has_required_reason
+  validate :decision_metadata_is_consistent
+  validate :approved_allocations_reconcile, if: :approving_responsibility?
+  before_validation :capture_verification_metadata
 
   scope :open,   -> { where(status: %w[open acknowledged awaiting_approval approved scheduled in_progress]) }
   scope :urgent, -> { where(priority: "urgent") }
@@ -66,7 +76,7 @@ class MaintenanceRequest < ApplicationRecord
       errors.add(:room, "must belong to this property, unit and organization")
     end
 
-    [reported_by, assigned_to, approved_by, responsibility_reviewed_by, closed_by].compact.each do |user|
+    [reported_by, assigned_to, approved_by, responsibility_reviewed_by, rejected_by, closed_by, verified_by].compact.each do |user|
       errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
     end
     if assigned_to && property && !property.property_assignments.where(
@@ -106,6 +116,58 @@ class MaintenanceRequest < ApplicationRecord
 
     errors.add(:rejection_reason, "is required when rejecting work") if status == "rejected" && rejection_reason.blank?
     errors.add(:cancellation_reason, "is required when cancelling work") if status == "cancelled" && cancellation_reason.blank?
+  end
+
+  def decision_metadata_is_consistent
+    {
+      approved_by: approved_at,
+      responsibility_reviewed_by: responsibility_reviewed_at,
+      rejected_by: rejected_at,
+      verified_by: verified_at
+    }.each do |actor_attribute, timestamp|
+      actor = public_send(actor_attribute)
+      next if actor.blank? == timestamp.blank?
+
+      errors.add(actor_attribute, "and its decision timestamp must be recorded together")
+    end
+  end
+
+  def approving_responsibility?
+    responsibility_status == "approved" && will_save_change_to_responsibility_status?
+  end
+
+  def approved_allocations_reconcile
+    allocations = cost_allocations.where(status: "approved")
+    if approved_cost.nil? || allocations.empty?
+      errors.add(:cost_allocations, "must be recorded against an approved amount")
+      return
+    end
+
+    unless allocations.sum(:allocated_amount) == approved_cost
+      errors.add(:cost_allocations, "must reconcile to the approved amount")
+    end
+
+    percentages = allocations.pluck(:allocation_percentage)
+    if percentages.any?(&:present?)
+      if percentages.any?(&:nil?)
+        errors.add(:cost_allocations, "must either all specify percentages or all omit them")
+      elsif percentages.sum != 100
+        errors.add(:cost_allocations, "percentages must total 100")
+      end
+    end
+  end
+
+  def capture_verification_metadata
+    return unless will_save_change_to_status?
+
+    actor = Current.user if Current.user&.organization_id == organization_id
+    if status == "rejected"
+      self.rejected_by ||= actor
+      self.rejected_at ||= Time.current if rejected_by
+    elsif status == "closed"
+      self.verified_by ||= actor
+      self.verified_at ||= Time.current if verified_by
+    end
   end
 
   def target_completion_is_not_before_schedule

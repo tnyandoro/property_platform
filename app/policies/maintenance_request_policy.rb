@@ -1,8 +1,12 @@
 class MaintenanceRequestPolicy < ApplicationPolicy
   def index?   = property_assigned?
   def show?    = property_assigned?
-  def create?  = property_manager?
-  def update?  = property_manager?
+  def create?  = manage?
+  def update?  = manage?
+  def manage?  = property_manager?
+  def assign?  = manage?
+  def approve? = manage?
+  def verify?  = manage?
   def destroy? = false
 
   private

@@ -9,6 +9,7 @@ class Document < ApplicationRecord
   belongs_to :lease,              optional: true
   belongs_to :inspection,         optional: true
   belongs_to :maintenance_request, optional: true
+  belongs_to :maintenance_financial_entry, optional: true
   belongs_to :damage_assessment,  optional: true
   belongs_to :property_ownership, optional: true
 
@@ -24,7 +25,10 @@ class Document < ApplicationRecord
   private
 
   def must_have_parent
-    parents = [property_id, lease_id, inspection_id, maintenance_request_id, damage_assessment_id, property_ownership_id]
+    parents = [
+      property_id, lease_id, inspection_id, maintenance_request_id,
+      maintenance_financial_entry_id, damage_assessment_id, property_ownership_id
+    ]
     return if parents.any?(&:present?)
 
     errors.add(:base, "must be attached to a property, ownership record, lease, inspection, maintenance request, or damage assessment")
@@ -49,23 +53,30 @@ class Document < ApplicationRecord
   end
 
   def maintenance_request_must_match_parent
-    return unless maintenance_request
+    linked_request = maintenance_request || maintenance_financial_entry&.maintenance_request
+    return unless linked_request
 
-    if maintenance_request.organization_id != organization_id
+    if linked_request.organization_id != organization_id
       errors.add(:maintenance_request, "must belong to the same organization")
     end
-    expected_property_id = property_id || lease&.property_id || inspection&.property_id || damage_assessment&.property_id
-    if expected_property_id.present? && maintenance_request.property_id != expected_property_id
+    expected_property_id = property_id || lease&.property_id || inspection&.property_id ||
+      damage_assessment&.property_id || property_ownership&.property_id
+    if expected_property_id.present? && linked_request.property_id != expected_property_id
       errors.add(:maintenance_request, "must belong to the same property")
     end
-    if lease && (lease.organization_id != organization_id || lease.property_id != maintenance_request.property_id)
+    if lease && (lease.organization_id != organization_id || lease.property_id != linked_request.property_id)
       errors.add(:lease, "must belong to the same property and organization")
     end
-    if inspection && (inspection.organization_id != organization_id || inspection.property_id != maintenance_request.property_id)
+    if inspection && (inspection.organization_id != organization_id || inspection.property_id != linked_request.property_id)
       errors.add(:inspection, "must belong to the same property and organization")
     end
-    if damage_assessment && (damage_assessment.organization_id != organization_id || damage_assessment.property_id != maintenance_request.property_id)
+    if damage_assessment && (damage_assessment.organization_id != organization_id || damage_assessment.property_id != linked_request.property_id)
       errors.add(:damage_assessment, "must belong to the same property and organization")
+    end
+    if maintenance_financial_entry &&
+       (maintenance_financial_entry.organization_id != organization_id ||
+        maintenance_financial_entry.maintenance_request_id != linked_request.id)
+      errors.add(:maintenance_financial_entry, "must belong to the linked maintenance request and organization")
     end
   end
 

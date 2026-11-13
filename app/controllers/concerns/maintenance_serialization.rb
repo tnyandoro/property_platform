@@ -1,7 +1,7 @@
 module MaintenanceSerialization
   private
 
-  def maintenance_request_payload(request)
+  def maintenance_request_payload(request, audit_logs: nil, blobs_by_key: nil)
     {
       id: request.id,
       property_id: request.property_id,
@@ -13,8 +13,11 @@ module MaintenanceSerialization
       priority: request.priority,
       status: request.status,
       classification: request.classification,
+      suggested_responsibility: request.suggested_responsibility,
       responsibility_status: request.responsibility_status,
       responsibility_notes: request.responsibility_notes,
+      responsibility_reviewed_by_id: request.responsibility_reviewed_by_id,
+      responsibility_reviewed_at: request.responsibility_reviewed_at,
       approval_notes: request.approval_notes,
       rejection_reason: request.rejection_reason,
       cancellation_reason: request.cancellation_reason,
@@ -40,12 +43,19 @@ module MaintenanceSerialization
       currency: request.currency,
       approved_by_id: request.approved_by_id,
       approved_at: request.approved_at,
+      rejected_by_id: request.rejected_by_id,
+      rejected_at: request.rejected_at,
+      verified_by_id: request.verified_by_id,
+      verified_at: request.verified_at,
       closed_by_id: request.closed_by_id,
       resolution_notes: request.resolution_notes,
       cost_allocations: request.cost_allocations.map { |allocation| cost_allocation_payload(allocation) },
-      financial_entries: request.financial_entries.order(:occurred_on, :created_at).map { |entry| financial_entry_payload(entry) },
-      documents: request.documents.order(:created_at, :id).map { |document| document_payload(document) },
-      audit_history: AuditLog.for_record(request).where(organization_id: request.organization_id).order(:occurred_at).map do |log|
+      financial_entries: request.financial_entries.sort_by { |entry| [entry.occurred_on, entry.created_at] }
+        .map { |entry| financial_entry_payload(entry) },
+      documents: request.documents.sort_by { |document| [document.created_at, document.id] }.map do |document|
+        document_payload(document, blob: blobs_by_key&.[](document.storage_key))
+      end,
+      audit_history: (audit_logs || AuditLog.for_record(request).where(organization_id: request.organization_id).order(:occurred_at)).map do |log|
         {
           action: log.action,
           actor_id: log.actor_id,
@@ -71,9 +81,13 @@ module MaintenanceSerialization
       suggested_responsibility: schedule.suggested_responsibility,
       frequency: schedule.frequency,
       interval_months: schedule.interval_months,
+      interval_value: schedule.interval_value,
+      interval_unit: schedule.interval_unit,
       starts_on: schedule.starts_on,
       ends_on: schedule.ends_on,
       next_due_on: schedule.next_due_on,
+      target_completion_on: schedule.target_completion_on,
+      room_id: schedule.room_id,
       reminder_days: schedule.reminder_days,
       status: schedule.status,
       generation_mode: schedule.generation_mode,
@@ -93,7 +107,11 @@ module MaintenanceSerialization
       allocated_amount: allocation.allocated_amount,
       currency: allocation.currency,
       rationale: allocation.rationale,
+      allocation_percentage: allocation.allocation_percentage,
+      lease_id: allocation.lease_id,
+      property_ownership_id: allocation.property_ownership_id,
       approved_by_id: allocation.approved_by_id,
+      approved_at: allocation.approved_at,
       created_at: allocation.created_at
     }
   end
@@ -104,9 +122,17 @@ module MaintenanceSerialization
       entry_type: entry.entry_type,
       amount: entry.amount,
       currency: entry.currency,
+      status: entry.status,
       occurred_on: entry.occurred_on,
       reference: entry.reference,
       notes: entry.notes,
+      valid_until: entry.valid_until,
+      due_on: entry.due_on,
+      invoice_reference: entry.invoice_reference,
+      invoice_id: entry.invoice_id,
+      decision_by_id: entry.decision_by_id,
+      decision_at: entry.decision_at,
+      decision_reason: entry.decision_reason,
       party_id: entry.party_id,
       recorded_by_id: entry.recorded_by_id
     }

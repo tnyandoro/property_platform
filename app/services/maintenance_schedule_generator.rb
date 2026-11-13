@@ -17,28 +17,31 @@ class MaintenanceScheduleGenerator
 
       due_dates = schedule.due_dates_through(through)
       due_dates.each do |due_on|
-        unless schedule.generation_mode == "reminder_only" && !manual
-          generated << schedule.maintenance_requests.create_or_find_by!(occurrence_on: due_on) do |request|
-            request.assign_attributes(
-              organization: schedule.organization,
-              property: schedule.property,
-              unit: schedule.unit,
-              assigned_to: schedule.assigned_to,
-              contractor: schedule.contractor,
-              reported_by: schedule.created_by,
-              title: schedule.title,
-              description: schedule.description,
-              category: schedule.category,
-              priority: schedule.priority,
-              classification: schedule.classification,
-              estimated_cost: schedule.estimated_cost,
-              currency: schedule.currency,
-              reported_at: due_on.in_time_zone,
-              status: schedule.generation_mode == "proposed" ? "awaiting_approval" : "open",
-              source_type: "schedule"
-            )
-          end
+        request = schedule.maintenance_requests.create_or_find_by!(occurrence_on: due_on) do |occurrence|
+          occurrence.assign_attributes(
+            organization: schedule.organization,
+            property: schedule.property,
+            unit: schedule.unit || schedule.room&.unit,
+            room: schedule.room,
+            assigned_to: schedule.assigned_to,
+            contractor: schedule.contractor,
+            reported_by: schedule.created_by,
+            title: schedule.title,
+            description: schedule.description,
+            category: schedule.category,
+            priority: schedule.priority,
+            classification: schedule.classification,
+            suggested_responsibility: generated_responsibility,
+            estimated_cost: schedule.estimated_cost,
+            currency: schedule.currency,
+            reported_at: due_on.in_time_zone,
+            scheduled_on: due_on,
+            target_completion_on: schedule.frequency == "once" ? schedule.target_completion_on : nil,
+            status: schedule.generation_mode == "proposed" ? "awaiting_approval" : "open",
+            source_type: "schedule"
+          )
         end
+        generated << request if request.previously_new_record?
 
         if schedule.frequency == "once"
           schedule.update!(status: "completed")
@@ -60,4 +63,11 @@ class MaintenanceScheduleGenerator
   private
 
   attr_reader :schedule, :through, :manual
+
+  def generated_responsibility
+    responsibility = schedule.suggested_responsibility
+    return responsibility if MaintenanceRequest::SUGGESTED_RESPONSIBILITIES.include?(responsibility)
+
+    "unknown"
+  end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_13_131500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -113,6 +113,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.integer "file_size_bytes"
     t.uuid "inspection_id"
     t.uuid "lease_id"
+    t.uuid "maintenance_financial_entry_id"
     t.uuid "maintenance_request_id"
     t.uuid "organization_id", null: false
     t.uuid "property_id"
@@ -121,16 +122,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.uuid "uploaded_by_id", null: false
+    t.index ["maintenance_financial_entry_id"], name: "index_documents_on_maintenance_financial_entry_id"
+    t.index ["maintenance_request_id"], name: "index_documents_on_maintenance_request_id"
     t.index ["organization_id", "document_type"], name: "index_documents_on_organization_id_and_document_type"
     t.index ["organization_id", "inspection_id"], name: "index_documents_on_organization_id_and_inspection_id"
     t.index ["organization_id", "lease_id"], name: "index_documents_on_organization_id_and_lease_id"
     t.index ["organization_id", "property_id"], name: "index_documents_on_organization_id_and_property_id"
     t.index ["organization_id", "property_ownership_id"], name: "index_documents_on_org_and_property_ownership"
-    t.index ["maintenance_request_id"], name: "index_documents_on_maintenance_request_id"
     t.index ["organization_id"], name: "index_documents_on_organization_id"
     t.index ["property_ownership_id"], name: "index_documents_on_property_ownership_id"
     t.index ["uploaded_by_id"], name: "index_documents_on_uploaded_by_id"
-    t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR damage_assessment_id IS NOT NULL OR property_ownership_id IS NOT NULL", name: "documents_must_have_parent"
+    t.check_constraint "property_id IS NOT NULL OR lease_id IS NOT NULL OR inspection_id IS NOT NULL OR maintenance_request_id IS NOT NULL OR maintenance_financial_entry_id IS NOT NULL OR damage_assessment_id IS NOT NULL OR property_ownership_id IS NOT NULL", name: "documents_must_have_parent"
   end
 
   create_table "inspection_amendments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -280,20 +282,88 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'active'::character varying, 'expired'::character varying, 'terminated'::character varying, 'cancelled'::character varying]::text[])", name: "leases_status_check"
   end
 
+  create_table "maintenance_cost_allocations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "allocated_amount", precision: 12, scale: 2, null: false
+    t.decimal "allocation_percentage", precision: 5, scale: 2
+    t.datetime "approved_at"
+    t.uuid "approved_by_id", null: false
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.uuid "lease_id"
+    t.uuid "maintenance_request_id", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "party_id"
+    t.uuid "property_ownership_id"
+    t.text "rationale", null: false
+    t.string "responsible_party", null: false
+    t.string "status", default: "approved", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approved_by_id"], name: "index_maintenance_cost_allocations_on_approved_by_id"
+    t.index ["lease_id"], name: "index_maintenance_cost_allocations_on_lease_id"
+    t.index ["maintenance_request_id"], name: "index_maintenance_cost_allocations_on_maintenance_request_id"
+    t.index ["organization_id", "maintenance_request_id"], name: "idx_maint_alloc_org_request"
+    t.index ["organization_id"], name: "index_maintenance_cost_allocations_on_organization_id"
+    t.index ["party_id"], name: "index_maintenance_cost_allocations_on_party_id"
+    t.index ["property_ownership_id"], name: "index_maintenance_cost_allocations_on_property_ownership_id"
+    t.check_constraint "allocated_amount >= 0::numeric", name: "maintenance_cost_allocations_amount_check"
+    t.check_constraint "allocation_percentage IS NULL OR allocation_percentage >= 0::numeric AND allocation_percentage <= 100::numeric", name: "maintenance_cost_allocations_percentage_check"
+    t.check_constraint "responsible_party::text = ANY (ARRAY['owner'::character varying, 'tenant'::character varying, 'shared'::character varying, 'other'::character varying, 'organization'::character varying, 'third_party'::character varying]::text[])", name: "maintenance_cost_allocations_party_check"
+    t.check_constraint "status::text = ANY (ARRAY['approved'::character varying, 'superseded'::character varying]::text[])", name: "maintenance_cost_allocations_status_check"
+  end
+
+  create_table "maintenance_financial_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.datetime "decision_at"
+    t.uuid "decision_by_id"
+    t.text "decision_reason"
+    t.date "due_on"
+    t.string "entry_type", null: false
+    t.uuid "invoice_id"
+    t.string "invoice_reference"
+    t.uuid "maintenance_request_id", null: false
+    t.text "notes"
+    t.date "occurred_on", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "party_id"
+    t.uuid "recorded_by_id", null: false
+    t.string "reference"
+    t.string "status", default: "recorded", null: false
+    t.string "type"
+    t.datetime "updated_at", null: false
+    t.date "valid_until"
+    t.index ["decision_by_id"], name: "index_maintenance_financial_entries_on_decision_by_id"
+    t.index ["invoice_id"], name: "index_maintenance_financial_entries_on_invoice_id"
+    t.index ["maintenance_request_id"], name: "idx_maintenance_entries_one_selected_quote", unique: true, where: "(((type)::text = 'MaintenanceQuote'::text) AND ((status)::text = 'selected'::text))"
+    t.index ["maintenance_request_id"], name: "index_maintenance_financial_entries_on_maintenance_request_id"
+    t.index ["organization_id", "maintenance_request_id", "entry_type"], name: "idx_maint_finance_org_req_type"
+    t.index ["organization_id", "party_id", "invoice_reference"], name: "idx_maintenance_invoice_reference", unique: true, where: "(((type)::text = 'MaintenanceInvoice'::text) AND (invoice_reference IS NOT NULL) AND ((invoice_reference)::text <> ''::text))"
+    t.index ["organization_id"], name: "index_maintenance_financial_entries_on_organization_id"
+    t.index ["party_id"], name: "index_maintenance_financial_entries_on_party_id"
+    t.index ["recorded_by_id"], name: "index_maintenance_financial_entries_on_recorded_by_id"
+    t.check_constraint "amount >= 0::numeric", name: "maintenance_financial_entries_amount_check"
+    t.check_constraint "entry_type::text = ANY (ARRAY['quotation'::character varying, 'invoice'::character varying, 'payment'::character varying]::text[])", name: "maintenance_financial_entries_type_check"
+    t.check_constraint "status::text = ANY (ARRAY['recorded'::character varying, 'draft'::character varying, 'received'::character varying, 'selected'::character varying, 'rejected'::character varying, 'expired'::character varying, 'superseded'::character varying, 'approved'::character varying, 'partially_paid'::character varying, 'paid'::character varying, 'overdue'::character varying, 'disputed'::character varying, 'cancelled'::character varying, 'pending'::character varying, 'failed'::character varying]::text[])", name: "maintenance_financial_entries_status_check"
+    t.check_constraint "type IS NULL AND invoice_id IS NULL OR type::text = 'MaintenancePayment'::text AND invoice_id IS NOT NULL OR (type::text = ANY (ARRAY['MaintenanceQuote'::character varying, 'MaintenanceInvoice'::character varying]::text[])) AND invoice_id IS NULL", name: "maintenance_financial_entries_payment_invoice_check"
+    t.check_constraint "type IS NULL OR (type::text = ANY (ARRAY['MaintenanceQuote'::character varying, 'MaintenanceInvoice'::character varying, 'MaintenancePayment'::character varying]::text[]))", name: "maintenance_financial_entries_sti_type_check"
+    t.check_constraint "type IS NULL OR type::text = 'MaintenanceQuote'::text AND entry_type::text = 'quotation'::text OR type::text = 'MaintenanceInvoice'::text AND entry_type::text = 'invoice'::text OR type::text = 'MaintenancePayment'::text AND entry_type::text = 'payment'::text", name: "maintenance_financial_entries_sti_entry_type_check"
+  end
+
   create_table "maintenance_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "acknowledged_at"
     t.decimal "actual_cost", precision: 12, scale: 2
     t.datetime "actual_started_at"
-    t.uuid "assigned_to_id"
     t.text "approval_notes"
     t.datetime "approved_at"
     t.uuid "approved_by_id"
     t.decimal "approved_cost", precision: 12, scale: 2
-    t.uuid "closed_by_id"
-    t.string "category"
+    t.uuid "assigned_to_id"
     t.text "cancellation_reason"
+    t.string "category"
     t.string "classification", default: "undetermined", null: false
     t.datetime "closed_at"
+    t.uuid "closed_by_id"
     t.uuid "contractor_id"
     t.datetime "created_at", null: false
     t.string "currency", default: "ZAR", null: false
@@ -301,18 +371,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.decimal "estimated_cost", precision: 12, scale: 2
     t.uuid "lease_id"
     t.uuid "maintenance_schedule_id"
-    t.uuid "organization_id", null: false
     t.date "occurrence_on"
+    t.uuid "organization_id", null: false
+    t.date "overdue_notified_for"
     t.string "priority", default: "medium", null: false
     t.uuid "property_id", null: false
+    t.datetime "rejected_at"
+    t.uuid "rejected_by_id"
+    t.text "rejection_reason"
     t.datetime "reported_at", null: false
     t.uuid "reported_by_id", null: false
+    t.text "resolution_notes"
+    t.datetime "resolved_at"
     t.text "responsibility_notes"
     t.datetime "responsibility_reviewed_at"
     t.uuid "responsibility_reviewed_by_id"
     t.string "responsibility_status", default: "pending_review", null: false
-    t.text "resolution_notes"
-    t.datetime "resolved_at"
     t.uuid "room_id"
     t.date "scheduled_on"
     t.uuid "source_damage_assessment_id"
@@ -320,79 +394,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.uuid "source_inspection_item_id"
     t.string "source_type", default: "manager", null: false
     t.string "status", default: "open", null: false
+    t.string "suggested_responsibility", default: "unknown", null: false
     t.date "target_completion_on"
     t.string "title", null: false
     t.uuid "unit_id"
     t.datetime "updated_at", null: false
-    t.text "rejection_reason"
-    t.index ["assigned_to_id"], name: "index_maintenance_requests_on_assigned_to_id"
+    t.datetime "verified_at"
+    t.uuid "verified_by_id"
     t.index ["approved_by_id"], name: "index_maintenance_requests_on_approved_by_id"
+    t.index ["assigned_to_id"], name: "index_maintenance_requests_on_assigned_to_id"
     t.index ["closed_by_id"], name: "index_maintenance_requests_on_closed_by_id"
     t.index ["contractor_id"], name: "index_maintenance_requests_on_contractor_id"
     t.index ["lease_id"], name: "index_maintenance_requests_on_lease_id"
-    t.index ["maintenance_schedule_id", "occurrence_on"], name: "idx_maintenance_requests_schedule_occurrence", unique: true, where: "(maintenance_schedule_id IS NOT NULL) AND (occurrence_on IS NOT NULL)"
+    t.index ["maintenance_schedule_id", "occurrence_on"], name: "idx_maintenance_requests_schedule_occurrence", unique: true, where: "((maintenance_schedule_id IS NOT NULL) AND (occurrence_on IS NOT NULL))"
     t.index ["organization_id", "priority"], name: "index_maintenance_requests_on_organization_id_and_priority"
     t.index ["organization_id", "property_id"], name: "index_maintenance_requests_on_organization_id_and_property_id"
     t.index ["organization_id", "status"], name: "index_maintenance_requests_on_organization_id_and_status"
     t.index ["organization_id"], name: "index_maintenance_requests_on_organization_id"
     t.index ["property_id"], name: "index_maintenance_requests_on_property_id"
+    t.index ["rejected_by_id"], name: "index_maintenance_requests_on_rejected_by_id"
     t.index ["reported_by_id"], name: "index_maintenance_requests_on_reported_by_id"
     t.index ["responsibility_reviewed_by_id"], name: "index_maintenance_requests_on_responsibility_reviewed_by_id"
     t.index ["room_id"], name: "index_maintenance_requests_on_room_id"
-    t.index ["source_inspection_id"], name: "index_maintenance_requests_on_source_inspection_id"
     t.index ["source_damage_assessment_id"], name: "idx_maint_req_source_damage_assessment", unique: true, where: "(source_damage_assessment_id IS NOT NULL)"
+    t.index ["source_inspection_id"], name: "index_maintenance_requests_on_source_inspection_id"
     t.index ["source_inspection_item_id"], name: "idx_maint_req_source_inspection_item", unique: true, where: "(source_inspection_item_id IS NOT NULL)"
+    t.index ["target_completion_on"], name: "idx_maint_requests_target_completion", where: "(target_completion_on IS NOT NULL)"
     t.index ["unit_id"], name: "index_maintenance_requests_on_unit_id"
+    t.index ["verified_by_id"], name: "index_maintenance_requests_on_verified_by_id"
+    t.check_constraint "(estimated_cost IS NULL OR estimated_cost >= 0::numeric) AND (approved_cost IS NULL OR approved_cost >= 0::numeric) AND (actual_cost IS NULL OR actual_cost >= 0::numeric)", name: "maintenance_requests_costs_check"
+    t.check_constraint "classification::text = ANY (ARRAY['wear_and_tear'::character varying, 'accidental_damage'::character varying, 'negligence'::character varying, 'misuse'::character varying, 'structural_deterioration'::character varying, 'preventative_maintenance'::character varying, 'breakdown'::character varying, 'improvement'::character varying, 'compliance_safety'::character varying, 'other'::character varying, 'undetermined'::character varying]::text[])", name: "maintenance_requests_classification_check"
     t.check_constraint "priority::text = ANY (ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'urgent'::character varying]::text[])", name: "maintenance_requests_priority_check"
-    t.check_constraint "classification IN ('wear_and_tear','accidental_damage','negligence','misuse','structural_deterioration','preventative_maintenance','breakdown','improvement','compliance_safety','other','undetermined')", name: "maintenance_requests_classification_check"
-    t.check_constraint "(estimated_cost IS NULL OR estimated_cost >= 0) AND (approved_cost IS NULL OR approved_cost >= 0) AND (actual_cost IS NULL OR actual_cost >= 0)", name: "maintenance_requests_costs_check"
-    t.check_constraint "responsibility_status IN ('pending_review','approved','disputed')", name: "maintenance_requests_responsibility_status_check"
-    t.check_constraint "source_type IN ('tenant_request','schedule','inspection','damage_assessment','manager','other')", name: "maintenance_requests_source_type_check"
-    t.check_constraint "status IN ('open','acknowledged','awaiting_approval','approved','scheduled','in_progress','resolved','closed','rejected','disputed','cancelled')", name: "maintenance_requests_status_check"
-  end
-
-  create_table "maintenance_cost_allocations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.decimal "allocated_amount", precision: 12, scale: 2, null: false
-    t.uuid "approved_by_id", null: false
-    t.string "currency", null: false
-    t.datetime "created_at", null: false
-    t.uuid "maintenance_request_id", null: false
-    t.uuid "organization_id", null: false
-    t.uuid "party_id"
-    t.text "rationale", null: false
-    t.string "responsible_party", null: false
-    t.string "status", default: "approved", null: false
-    t.datetime "updated_at", null: false
-    t.index ["approved_by_id"], name: "index_maintenance_cost_allocations_on_approved_by_id"
-    t.index ["maintenance_request_id"], name: "index_maintenance_cost_allocations_on_maintenance_request_id"
-    t.index ["organization_id", "maintenance_request_id"], name: "idx_maint_alloc_org_request"
-    t.index ["organization_id"], name: "index_maintenance_cost_allocations_on_organization_id"
-    t.index ["party_id"], name: "index_maintenance_cost_allocations_on_party_id"
-    t.check_constraint "allocated_amount >= 0", name: "maintenance_cost_allocations_amount_check"
-    t.check_constraint "responsible_party IN ('owner','tenant','shared','other')", name: "maintenance_cost_allocations_party_check"
-    t.check_constraint "status IN ('approved','superseded')", name: "maintenance_cost_allocations_status_check"
-  end
-
-  create_table "maintenance_financial_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.decimal "amount", precision: 12, scale: 2, null: false
-    t.string "currency", null: false
-    t.datetime "created_at", null: false
-    t.string "entry_type", null: false
-    t.date "occurred_on", null: false
-    t.uuid "maintenance_request_id", null: false
-    t.text "notes"
-    t.uuid "organization_id", null: false
-    t.uuid "party_id"
-    t.string "reference"
-    t.uuid "recorded_by_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["maintenance_request_id"], name: "index_maintenance_financial_entries_on_maintenance_request_id"
-    t.index ["organization_id", "maintenance_request_id", "entry_type"], name: "idx_maint_finance_org_req_type"
-    t.index ["organization_id"], name: "index_maintenance_financial_entries_on_organization_id"
-    t.index ["party_id"], name: "index_maintenance_financial_entries_on_party_id"
-    t.index ["recorded_by_id"], name: "index_maintenance_financial_entries_on_recorded_by_id"
-    t.check_constraint "amount >= 0", name: "maintenance_financial_entries_amount_check"
-    t.check_constraint "entry_type IN ('quotation','invoice','payment')", name: "maintenance_financial_entries_type_check"
+    t.check_constraint "responsibility_status::text = ANY (ARRAY['pending_review'::character varying, 'approved'::character varying, 'disputed'::character varying]::text[])", name: "maintenance_requests_responsibility_status_check"
+    t.check_constraint "source_type::text = ANY (ARRAY['tenant_request'::character varying, 'schedule'::character varying, 'inspection'::character varying, 'damage_assessment'::character varying, 'manager'::character varying, 'other'::character varying]::text[])", name: "maintenance_requests_source_type_check"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'acknowledged'::character varying, 'awaiting_approval'::character varying, 'approved'::character varying, 'scheduled'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying, 'rejected'::character varying, 'disputed'::character varying, 'cancelled'::character varying]::text[])", name: "maintenance_requests_status_check"
+    t.check_constraint "suggested_responsibility::text = ANY (ARRAY['owner'::character varying, 'tenant'::character varying, 'shared'::character varying, 'organization'::character varying, 'third_party'::character varying, 'unknown'::character varying]::text[])", name: "maintenance_requests_suggested_responsibility_check"
   end
 
   create_table "maintenance_schedules", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -400,42 +436,53 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
     t.string "category"
     t.string "classification", default: "undetermined", null: false
     t.uuid "contractor_id"
-    t.string "currency", default: "ZAR", null: false
-    t.uuid "created_by_id", null: false
     t.datetime "created_at", null: false
+    t.uuid "created_by_id", null: false
+    t.string "currency", default: "ZAR", null: false
     t.text "description"
     t.date "ends_on"
+    t.decimal "estimated_cost", precision: 12, scale: 2
     t.string "frequency", default: "once", null: false
     t.string "generation_mode", default: "proposed", null: false
     t.integer "interval_months"
+    t.string "interval_unit"
+    t.integer "interval_value"
+    t.date "last_overdue_notified_for"
+    t.date "last_reminder_sent_for"
     t.date "next_due_on", null: false
     t.uuid "organization_id", null: false
     t.string "priority", default: "medium", null: false
     t.uuid "property_id", null: false
     t.integer "reminder_days", default: 7, null: false
+    t.uuid "room_id"
     t.date "starts_on", null: false
     t.string "status", default: "active", null: false
     t.string "suggested_responsibility", default: "pending", null: false
+    t.date "target_completion_on"
     t.string "title", null: false
-    t.decimal "estimated_cost", precision: 12, scale: 2
     t.uuid "unit_id"
     t.datetime "updated_at", null: false
     t.index ["assigned_to_id"], name: "index_maintenance_schedules_on_assigned_to_id"
     t.index ["contractor_id"], name: "index_maintenance_schedules_on_contractor_id"
     t.index ["created_by_id"], name: "index_maintenance_schedules_on_created_by_id"
+    t.index ["next_due_on"], name: "idx_maint_schedules_active_due", where: "((status)::text = 'active'::text)"
     t.index ["organization_id", "property_id", "status"], name: "idx_maint_sched_org_property_status"
     t.index ["organization_id"], name: "index_maintenance_schedules_on_organization_id"
     t.index ["property_id"], name: "index_maintenance_schedules_on_property_id"
+    t.index ["room_id"], name: "index_maintenance_schedules_on_room_id"
     t.index ["unit_id"], name: "index_maintenance_schedules_on_unit_id"
-    t.check_constraint "classification IN ('wear_and_tear','accidental_damage','negligence','misuse','structural_deterioration','preventative_maintenance','breakdown','improvement','compliance_safety','other','undetermined')", name: "maintenance_schedules_classification_check"
-    t.check_constraint "estimated_cost IS NULL OR estimated_cost >= 0", name: "maintenance_schedules_estimated_cost_check"
-    t.check_constraint "frequency IN ('once','monthly','quarterly','semi_annual','annual','custom')", name: "maintenance_schedules_frequency_check"
-    t.check_constraint "generation_mode IN ('automatic','proposed','reminder_only')", name: "maintenance_schedules_generation_mode_check"
+    t.check_constraint "classification::text = ANY (ARRAY['wear_and_tear'::character varying, 'accidental_damage'::character varying, 'negligence'::character varying, 'misuse'::character varying, 'structural_deterioration'::character varying, 'preventative_maintenance'::character varying, 'breakdown'::character varying, 'improvement'::character varying, 'compliance_safety'::character varying, 'other'::character varying, 'undetermined'::character varying]::text[])", name: "maintenance_schedules_classification_check"
+    t.check_constraint "estimated_cost IS NULL OR estimated_cost >= 0::numeric", name: "maintenance_schedules_estimated_cost_check"
+    t.check_constraint "frequency::text <> 'custom'::text OR interval_months IS NOT NULL OR interval_value IS NOT NULL AND interval_unit IS NOT NULL", name: "maintenance_schedules_custom_interval_check"
+    t.check_constraint "frequency::text = ANY (ARRAY['once'::character varying, 'daily'::character varying, 'weekly'::character varying, 'monthly'::character varying, 'quarterly'::character varying, 'semi_annual'::character varying, 'annual'::character varying, 'custom'::character varying]::text[])", name: "maintenance_schedules_frequency_check"
+    t.check_constraint "generation_mode::text = ANY (ARRAY['automatic'::character varying, 'proposed'::character varying, 'reminder_only'::character varying]::text[])", name: "maintenance_schedules_generation_mode_check"
     t.check_constraint "interval_months IS NULL OR interval_months > 0", name: "maintenance_schedules_interval_months_check"
-    t.check_constraint "priority IN ('low','medium','high','urgent')", name: "maintenance_schedules_priority_check"
+    t.check_constraint "interval_unit IS NULL OR (interval_unit::text = ANY (ARRAY['day'::character varying, 'week'::character varying, 'month'::character varying]::text[]))", name: "maintenance_schedules_interval_unit_check"
+    t.check_constraint "interval_value IS NULL OR interval_value > 0", name: "maintenance_schedules_interval_value_check"
+    t.check_constraint "priority::text = ANY (ARRAY['low'::character varying, 'medium'::character varying, 'high'::character varying, 'urgent'::character varying]::text[])", name: "maintenance_schedules_priority_check"
     t.check_constraint "reminder_days >= 0", name: "maintenance_schedules_reminder_days_check"
-    t.check_constraint "status IN ('active','paused','completed')", name: "maintenance_schedules_status_check"
-    t.check_constraint "suggested_responsibility IN ('owner','tenant','shared','other','pending')", name: "maintenance_schedules_responsibility_check"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'paused'::character varying, 'completed'::character varying]::text[])", name: "maintenance_schedules_status_check"
+    t.check_constraint "suggested_responsibility::text = ANY (ARRAY['owner'::character varying, 'tenant'::character varying, 'shared'::character varying, 'other'::character varying, 'pending'::character varying, 'organization'::character varying, 'third_party'::character varying, 'unknown'::character varying]::text[])", name: "maintenance_schedules_responsibility_check"
   end
 
   create_table "organizations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -638,6 +685,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
   add_foreign_key "damage_assessments", "organizations"
   add_foreign_key "damage_assessments", "properties"
   add_foreign_key "damage_assessments", "users", column: "assessed_by_id"
+  add_foreign_key "documents", "maintenance_financial_entries"
+  add_foreign_key "documents", "maintenance_requests"
   add_foreign_key "documents", "organizations"
   add_foreign_key "documents", "property_ownerships"
   add_foreign_key "documents", "users", column: "uploaded_by_id"
@@ -664,33 +713,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_092500) do
   add_foreign_key "leases", "parties", column: "tenant_id"
   add_foreign_key "leases", "properties"
   add_foreign_key "leases", "units"
-  add_foreign_key "maintenance_requests", "organizations"
-  add_foreign_key "maintenance_requests", "properties"
-  add_foreign_key "maintenance_requests", "rooms"
-  add_foreign_key "maintenance_requests", "leases"
-  add_foreign_key "maintenance_requests", "maintenance_schedules"
-  add_foreign_key "maintenance_requests", "damage_assessments", column: "source_damage_assessment_id"
-  add_foreign_key "maintenance_requests", "inspection_items", column: "source_inspection_item_id"
-  add_foreign_key "maintenance_requests", "inspections", column: "source_inspection_id"
-  add_foreign_key "maintenance_requests", "parties", column: "contractor_id"
-  add_foreign_key "maintenance_requests", "units"
-  add_foreign_key "maintenance_requests", "users", column: "approved_by_id"
-  add_foreign_key "maintenance_requests", "users", column: "closed_by_id"
-  add_foreign_key "maintenance_requests", "users", column: "assigned_to_id"
-  add_foreign_key "maintenance_requests", "users", column: "reported_by_id"
-  add_foreign_key "maintenance_requests", "users", column: "responsibility_reviewed_by_id"
+  add_foreign_key "maintenance_cost_allocations", "leases"
   add_foreign_key "maintenance_cost_allocations", "maintenance_requests"
   add_foreign_key "maintenance_cost_allocations", "organizations"
   add_foreign_key "maintenance_cost_allocations", "parties"
+  add_foreign_key "maintenance_cost_allocations", "property_ownerships"
   add_foreign_key "maintenance_cost_allocations", "users", column: "approved_by_id"
+  add_foreign_key "maintenance_financial_entries", "maintenance_financial_entries", column: "invoice_id"
   add_foreign_key "maintenance_financial_entries", "maintenance_requests"
   add_foreign_key "maintenance_financial_entries", "organizations"
   add_foreign_key "maintenance_financial_entries", "parties"
+  add_foreign_key "maintenance_financial_entries", "users", column: "decision_by_id"
   add_foreign_key "maintenance_financial_entries", "users", column: "recorded_by_id"
+  add_foreign_key "maintenance_requests", "damage_assessments", column: "source_damage_assessment_id"
+  add_foreign_key "maintenance_requests", "inspection_items", column: "source_inspection_item_id"
+  add_foreign_key "maintenance_requests", "inspections", column: "source_inspection_id"
+  add_foreign_key "maintenance_requests", "leases"
+  add_foreign_key "maintenance_requests", "maintenance_schedules"
+  add_foreign_key "maintenance_requests", "organizations"
+  add_foreign_key "maintenance_requests", "parties", column: "contractor_id"
+  add_foreign_key "maintenance_requests", "properties"
+  add_foreign_key "maintenance_requests", "rooms"
+  add_foreign_key "maintenance_requests", "units"
+  add_foreign_key "maintenance_requests", "users", column: "approved_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "assigned_to_id"
+  add_foreign_key "maintenance_requests", "users", column: "closed_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "rejected_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "reported_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "responsibility_reviewed_by_id"
+  add_foreign_key "maintenance_requests", "users", column: "verified_by_id"
   add_foreign_key "maintenance_schedules", "organizations"
-  add_foreign_key "maintenance_schedules", "properties"
-  add_foreign_key "maintenance_schedules", "units"
   add_foreign_key "maintenance_schedules", "parties", column: "contractor_id"
+  add_foreign_key "maintenance_schedules", "properties"
+  add_foreign_key "maintenance_schedules", "rooms"
+  add_foreign_key "maintenance_schedules", "units"
   add_foreign_key "maintenance_schedules", "users", column: "assigned_to_id"
   add_foreign_key "maintenance_schedules", "users", column: "created_by_id"
   add_foreign_key "parties", "organizations"

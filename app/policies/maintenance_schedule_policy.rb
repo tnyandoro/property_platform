@@ -1,8 +1,9 @@
 class MaintenanceSchedulePolicy < ApplicationPolicy
   def index? = assigned?
   def show? = assigned?
-  def create? = manager?
-  def update? = manager?
+  def create? = manage?
+  def update? = manage?
+  def manage? = manager?
   def destroy? = false
 
   private
