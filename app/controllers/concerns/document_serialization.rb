@@ -1,7 +1,9 @@
 module DocumentSerialization
   private
 
-  def document_payload(document)
+  def document_payload(document, blob: nil)
+    blob ||= ActiveStorage::Blob.find_by(key: document.storage_key)
+
     {
       id: document.id,
       title: document.title,
@@ -9,7 +11,7 @@ module DocumentSerialization
       description: document.description,
       content_type: document.content_type,
       file_size_bytes: document.file_size_bytes,
-      url: document.download_url,
+      url: blob&.url(expires_in: 1.hour),
       uploaded_by_id: document.uploaded_by_id,
       created_at: document.created_at
     }

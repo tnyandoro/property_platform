@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Building2, CalendarPlus, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
+import { api, responseError } from './api'
+import { MaintenanceWorkspace } from './MaintenanceWorkspace'
 
 type User = { id: string; email: string; first_name: string; last_name: string; organization_id: string }
 type Address = { line_1?: string; line_2?: string; suburb?: string; city?: string; province?: string; postal_code?: string; country?: string }
@@ -70,10 +72,11 @@ type Portfolio = {
   rooms: Array<{ id: string; unit_id: string; room_name: string; room_type: string; floor_area?: number; status?: string; condition?: string }>
   items: Array<{ id: string; name: string; room_id: string; serial_number?: string; installed_at?: string; description?: string }>
   ownership: OwnershipRecord[]
-  assignments: Array<{ id: string; user: { name: string; email: string }; assignment_type: string; starts_at: string; ends_at?: string }>
+  assignments: Array<{ id: string; user: { id: string; name: string; email: string }; assignment_type: string; starts_at: string; ends_at?: string }>
   inspections: Array<{ id: string; inspection_type: string; status: string; scheduled_on?: string; inspected_on?: string }>
   leases: LeaseRecord[]
-  maintenance: Array<{ id: string; title: string; priority: string; status: string; reported_at: string; category?: string }>
+  maintenance: Array<{ id: string; title: string; priority: string; status: string; reported_at: string; category?: string; currency?: string | null }>
+  damage_assessments: Array<{ id: string; description: string; severity: string; responsibility: string; status: string; estimated_cost?: number | string | null; inspection_id?: string | null; inspection_item_id?: string | null; assessed_on: string }>
 }
 type InspectionDetail = {
   inspection: Portfolio['inspections'][number] & { notes?: string }
@@ -86,25 +89,6 @@ const emptyDraft: PropertyDraft = { name: '', property_type: 'residential', prop
 const MAX_PHOTO_UPLOAD_SIZE = 10 * 1024 * 1024
 const PHOTO_SIZE_ERROR = 'Choose an image that is 10 MiB or smaller.'
 const MAX_LEASE_PDF_UPLOAD_SIZE = 10 * 1024 * 1024
-
-type ApiErrorBody = { error?: string; errors?: string[] }
-
-async function responseError(response: Response): Promise<string> {
-  const body: ApiErrorBody = await response.json().catch(() => ({}))
-  return body.error || body.errors?.join(', ') || 'Request failed'
-}
-
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('property_platform_token')
-  const response = await fetch(`/api/v1${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  })
-  if (!response.ok) {
-    throw new Error(await responseError(response))
-  }
-  return response.status === 204 ? (undefined as T) : response.json()
-}
 
 function App() {
   const [user, setUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('property_platform_user') || 'null'))
@@ -173,7 +157,7 @@ function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
 function PropertyDetailWorkspace({ property, portfolio, loading, error, onInspection, onSchedule, onPhotoUploaded, onClose }: { property: Property; portfolio: Portfolio | null; loading: boolean; error: string; onInspection: (inspectionId: string) => void; onSchedule: () => void; onPhotoUploaded: (url: string) => void; onClose: () => void }) {
   const [tab, setTab] = useState('overview')
   const tabs = [['overview', 'Overview'], ['structure', 'Structure'], ['inventory', 'Inventory'], ['ownership', 'Ownership'], ['access', 'Access'], ['inspections', 'Inspections'], ['leases', 'Leases'], ['maintenance', 'Maintenance']]
-  return <div className="drawer-backdrop" onClick={onClose}><aside className="detail-workspace" onClick={(event) => event.stopPropagation()}><div className="detail-header"><div><p className="eyebrow">Property workspace</p><h2>{property.name}</h2><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="detail-tabs">{tabs.map(([value, label]) => <button className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{label}</button>)}</div>{loading ? <div className="detail-loading"><div className="spinner" /> Loading property workspace</div> : error ? <div className="detail-error"><X size={17} /><p>{error}</p></div> : portfolio && <div className="detail-content">{tab === 'overview' && <OverviewPanel property={property} portfolio={portfolio} onPhotoUploaded={onPhotoUploaded} />}{tab === 'structure' && <StructurePanel portfolio={portfolio} />}{tab === 'inventory' && <InventoryPanel portfolio={portfolio} />}{tab === 'ownership' && <OwnershipPanel property={property} portfolio={portfolio} />}{tab === 'access' && <AccessPanel portfolio={portfolio} />}{tab === 'inspections' && <InspectionsPanel portfolio={portfolio} onInspection={onInspection} onSchedule={onSchedule} />}{tab === 'leases' && <LeasesPanel propertyId={property.id} portfolio={portfolio} />}{tab === 'maintenance' && <MaintenancePanel portfolio={portfolio} />}</div>}</aside></div>
+  return <div className="drawer-backdrop" onClick={onClose}><aside className="detail-workspace" onClick={(event) => event.stopPropagation()}><div className="detail-header"><div><p className="eyebrow">Property workspace</p><h2>{property.name}</h2><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="detail-tabs">{tabs.map(([value, label]) => <button className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{label}</button>)}</div>{loading ? <div className="detail-loading"><div className="spinner" /> Loading property workspace</div> : error ? <div className="detail-error"><X size={17} /><p>{error}</p></div> : portfolio && <div className="detail-content">{tab === 'overview' && <OverviewPanel property={property} portfolio={portfolio} onPhotoUploaded={onPhotoUploaded} />}{tab === 'structure' && <StructurePanel portfolio={portfolio} />}{tab === 'inventory' && <InventoryPanel portfolio={portfolio} />}{tab === 'ownership' && <OwnershipPanel property={property} portfolio={portfolio} />}{tab === 'access' && <AccessPanel portfolio={portfolio} />}{tab === 'inspections' && <InspectionsPanel portfolio={portfolio} onInspection={onInspection} onSchedule={onSchedule} />}{tab === 'leases' && <LeasesPanel propertyId={property.id} portfolio={portfolio} />  }{tab === 'maintenance' && <MaintenanceWorkspace propertyId={property.id} portfolio={portfolio} />}</div>}</aside></div>
 }
 
 function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Property; portfolio: Portfolio; onPhotoUploaded: (url: string) => void }) {
@@ -1110,12 +1094,6 @@ function LeaseForm({ propertyId, units, onClose, onSaved }: {
     </form>
   </div>
 }
-function MaintenancePanel({ portfolio }: { portfolio: Portfolio }) {
-  const requests = portfolio.maintenance ?? []
-  const priorityColour: Record<string, string> = { urgent: '#874f3c', high: '#a06b2e', medium: '#9a7a3c', low: '#87938a' }
-  return <DataPanel title="Maintenance requests" count={requests.length}>{requests.length ? requests.map((req) => <div className="data-row" key={req.id}><div><strong>{req.title}</strong><span>{req.category || 'General'} · {new Date(req.reported_at).toLocaleDateString()}</span></div><small style={{ color: priorityColour[req.priority] ?? '#87938a' }}>{req.priority} · {req.status}</small></div>) : <EmptyPanel label="No maintenance requests yet" />}</DataPanel>
-}
-
 function ScheduleInspection({ propertyId, onClose, onCreated }: { propertyId: string; onClose: () => void; onCreated: () => void }) { const [inspectionType, setInspectionType] = useState('routine'); const [scheduledOn, setScheduledOn] = useState(''); const [notes, setNotes] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); async function submit(event: React.FormEvent) { event.preventDefault(); setLoading(true); setError(''); try { await api(`/properties/${propertyId}/inspections`, { method: 'POST', body: JSON.stringify({ inspection: { inspection_type: inspectionType, scheduled_on: scheduledOn || undefined, notes: notes || undefined } }) }); onCreated() } catch (err) { setError((err as Error).message) } finally { setLoading(false) } } return <div className="modal-backdrop" onClick={onClose}><form className="modal" onClick={(event) => event.stopPropagation()} onSubmit={submit}><div className="modal-header"><div><p className="eyebrow">Inspection workflow</p><h2>Schedule inspection</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="form-grid"><label>Type<select value={inspectionType} onChange={(event) => setInspectionType(event.target.value)}><option value="routine">Routine</option><option value="move_in">Move in</option><option value="move_out">Move out</option><option value="periodic">Periodic</option></select></label><label>Date<input type="date" value={scheduledOn} onChange={(event) => setScheduledOn(event.target.value)} /></label></div><label>Notes<textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional inspection context" rows={4} /></label>{error && <div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={loading}>{loading ? 'Scheduling...' : 'Schedule inspection'} <CalendarPlus size={16} /></button></div></form></div> }
 
 function InspectionReview({ propertyId, inspection, onStart, onClose }: { propertyId: string; inspection: InspectionDetail; onStart: () => void; onClose: () => void }) {

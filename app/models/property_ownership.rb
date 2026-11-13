@@ -8,6 +8,7 @@ class PropertyOwnership < ApplicationRecord
   belongs_to :party
   belongs_to :verified_by, class_name: "User", optional: true
   has_many :documents, inverse_of: :property_ownership
+  has_many :maintenance_cost_allocations
 
   scope :chronological, -> { order(:start_date, :created_at, :id) }
   scope :active_on, ->(date = Date.current) {

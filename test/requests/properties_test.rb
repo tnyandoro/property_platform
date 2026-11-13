@@ -145,6 +145,15 @@ class PropertiesTest < ActionDispatch::IntegrationTest
 
   test "returns the property portfolio resources" do
     property = assigned_property
+    property.maintenance_requests.create!(
+      organization: @organization,
+      reported_by: @user,
+      title: "Portfolio repair",
+      priority: "high",
+      classification: "wear_and_tear",
+      estimated_cost: 125,
+      reported_at: Time.current
+    )
     authenticate_as(@user)
 
     get api_v1_portfolio_path(property), headers: @auth_headers
@@ -159,6 +168,14 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     assert payload.key?("ownership")
     assert payload.key?("assignments")
     assert payload.key?("inspections")
+    maintenance = payload.fetch("maintenance").sole
+    assert_equal "wear_and_tear", maintenance.fetch("classification")
+    assert_equal "pending_review", maintenance.fetch("responsibility_status")
+    assert_nil maintenance.fetch("responsibility_reviewed_at")
+    assert_equal "ZAR", maintenance.fetch("currency")
+    assert_equal "125.0", maintenance.fetch("estimated_cost")
+    assert_empty maintenance.fetch("cost_allocations")
+    assert_empty maintenance.fetch("financial_entries")
   end
 
   test "returns nested resources only for an assigned property" do

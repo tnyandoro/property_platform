@@ -3,6 +3,10 @@ class Party < ApplicationRecord
 
   has_many :property_ownerships
   has_many :properties, through: :property_ownerships
+  has_many :maintenance_requests, foreign_key: :contractor_id
+  has_many :maintenance_schedules, foreign_key: :contractor_id
+  has_many :maintenance_financial_entries
+  has_many :maintenance_cost_allocations
 
   validates :party_type, :name, presence: true
 end
