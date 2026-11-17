@@ -262,7 +262,7 @@ class MaintenanceDomainTest < ActiveSupport::TestCase
     )
   end
 
-  def build_payment(invoice, amount:, status:, currency: invoice.currency)
+  def build_payment(invoice, amount:, status: "pending", currency: invoice.currency)
     MaintenancePayment.new(
       organization: @organization,
       maintenance_request: invoice.maintenance_request,

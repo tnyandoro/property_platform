@@ -67,8 +67,8 @@ class PropertyOwnership < ApplicationRecord
     errors.add(:property, "must belong to the same organization") if property && property.organization_id != organization_id
     errors.add(:party, "must belong to the same organization") if party && party.organization_id != organization_id
 
-    if verified_by && verified_by.organization_id != organization_id
-      errors.add(:verified_by, "must belong to the same organization")
+    if verified_by && !verified_by.member_of?(organization_id) && !verified_by.platform_administrator?
+      errors.add(:verified_by, "must be an active member of the organization")
     end
   end
 
@@ -81,7 +81,7 @@ class PropertyOwnership < ApplicationRecord
       .where.not(id: id)
     existing = existing.where("end_date IS NULL OR end_date > ?", start_date)
     existing = existing.where("start_date < ?", end_date) if end_date.present?
-    boundaries = [start_date] + existing.pluck(:start_date).select do |date|
+    boundaries = [ start_date ] + existing.pluck(:start_date).select do |date|
       date >= start_date && (end_date.nil? || date < end_date)
     end
 

@@ -5,6 +5,7 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     @organization = Organization.create!(name: "Tenant dashboard #{SecureRandom.hex(4)}")
     @manager = create_user(@organization, "manager", organization_role: "administrator")
     @tenant_user = create_user(@organization, "tenant")
+    @tenant_user.update!(email_verified_at: Time.current)
     @property = @organization.properties.create!(
       name: "Garden House",
       property_type: "residential",
@@ -141,7 +142,7 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     other_lease = create_lease(other_party, other_unit)
     create_tenant_request(other_user, other_party, other_lease, other_unit, "Other tenant request")
 
-    get "/api/v1/tenant/dashboard", headers: authenticate_as(@tenant_user)
+    get "/api/v1/tenant/dashboard", headers: authenticate_as(@tenant_user, workspace: "tenant")
 
     assert_response :success
     dashboard = response.parsed_body
@@ -217,9 +218,18 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     )
   end
 
-  def authenticate_as(user)
+  def authenticate_as(user, workspace: "management")
+    membership = user.membership_for(@organization)
+    payload = {
+      token_id: SecureRandom.uuid,
+      expires_at: 24.hours.from_now.to_i,
+      user_id: user.id,
+      organization_id: @organization.id,
+      workspace: workspace
+    }
+    payload[:membership_id] = membership.id if workspace == "management" && membership
     token = Rails.application.message_verifier(:authentication).generate(
-      { user_id: user.id },
+      payload,
       purpose: :access_token,
       expires_in: 24.hours
     )

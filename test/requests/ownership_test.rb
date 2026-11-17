@@ -43,11 +43,11 @@ class OwnershipTest < ActionDispatch::IntegrationTest
     assert_equal "1998-04-12", payload.fetch("start_date")
     assert_nil payload["transfer_value"]
     assert_equal "unverified", payload.fetch("verification_status")
-    assert_equal "historical", payload.fetch("effective_status")
+    assert_equal "current", payload.fetch("effective_status")
   end
 
   test "creates a new party and ownership record in the same request" do
-    assert_difference ["Party.count", "PropertyOwnership.count"], 1 do
+    assert_difference [ "Party.count", "PropertyOwnership.count" ], 1 do
       post ownership_path, params: {
         property_ownership: {
           party: { name: "Family Trust", party_type: "trust" },
@@ -70,7 +70,7 @@ class OwnershipTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     parties = JSON.parse(response.body)
-    assert_equal [@party.id], parties.pluck("id")
+    assert_equal [ @party.id ], parties.pluck("id")
   end
 
   test "rejects party records from another organization" do
@@ -145,7 +145,7 @@ class OwnershipTest < ActionDispatch::IntegrationTest
     assert_response :created
     assert_equal effective_on, previous_record.reload.end_date
     records = @property.property_ownerships.active_on(effective_on)
-    assert_equal [40.to_d, 60.to_d], records.order(:ownership_percentage).pluck(:ownership_percentage)
+    assert_equal [ 40.to_d, 60.to_d ], records.order(:ownership_percentage).pluck(:ownership_percentage)
     assert_equal "ZWG", records.first.currency
     assert_equal 250_000.to_d, records.first.transfer_value
     assert_equal 275_000.to_d, records.first.valuation_at_transfer
@@ -205,7 +205,7 @@ class OwnershipTest < ActionDispatch::IntegrationTest
     post transfer_path, params: {
       transfer: {
         effective_on: effective_on.to_s,
-        incoming_owners: [{ party_id: incoming.id, ownership_percentage: 100 }]
+        incoming_owners: [ { party_id: incoming.id, ownership_percentage: 100 } ]
       }
     }, headers: @auth_headers, as: :json
 

@@ -3,6 +3,8 @@ module Api
     class ApplicationController < ::ApplicationController
       include ActiveStorage::SetCurrent
 
+      before_action :require_management_workspace!
+
       rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
       rescue_from ActionController::ParameterMissing, with: :render_bad_request
 
@@ -12,7 +14,7 @@ module Api
       # Raises 403 if the policy returns false.
       def authorize!(record, query)
         policy_class = "#{record.class.name}Policy".constantize
-        policy       = policy_class.new(current_user, record)
+        policy = policy_class.new(current_user, record)
 
         unless policy.public_send(query)
           render json: { error: "Not authorized" }, status: :forbidden

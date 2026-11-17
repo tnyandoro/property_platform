@@ -2,6 +2,8 @@ module PropertyManagerAuthorization
   private
 
   def authorize_active_property_manager
+    return true if Current.membership&.administrator?
+
     now = Time.current
     manager = property.property_assignments
       .where(organization_id: current_organization.id, user_id: current_user.id, assignment_type: "manager")

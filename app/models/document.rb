@@ -4,13 +4,13 @@ class Document < ApplicationRecord
 
   belongs_to :uploaded_by, class_name: "User"
 
-  # loose parent references (not enforced as FKs to keep it flexible)
-  belongs_to :property,           optional: true
-  belongs_to :lease,              optional: true
-  belongs_to :inspection,         optional: true
+  # Loose parent references (not enforced as FKs to keep the model flexible).
+  belongs_to :property, optional: true
+  belongs_to :lease, optional: true
+  belongs_to :inspection, optional: true
   belongs_to :maintenance_request, optional: true
   belongs_to :maintenance_financial_entry, optional: true
-  belongs_to :damage_assessment,  optional: true
+  belongs_to :damage_assessment, optional: true
   belongs_to :property_ownership, optional: true
   belongs_to :published_by, class_name: "User", optional: true
 
@@ -18,8 +18,8 @@ class Document < ApplicationRecord
 
   validates :title, :storage_key, :document_type, presence: true
   validates :visibility, inclusion: { in: VISIBILITIES }
-  validate  :must_have_parent
-  validate  :ownership_must_match_property_and_organization
+  validate :must_have_parent
+  validate :ownership_must_match_property_and_organization
   validate :maintenance_request_must_match_parent
   validate :publication_metadata_is_consistent
 
@@ -40,50 +40,12 @@ class Document < ApplicationRecord
   end
 
   def ownership_must_match_property_and_organization
-    if uploaded_by && uploaded_by.organization_id != organization_id
-      errors.add(:uploaded_by, "must belong to the same organization")
-    end
-
-    def publication_metadata_is_consistent
-      if published_by && published_by.organization_id != organization_id
-        errors.add(:published_by, "must belong to the same organization")
-      end
-      return unless visibility == "tenant_visible"
-
-      if published_at.blank? || published_by.blank?
-        errors.add(:visibility, "requires a publisher and publication date")
-        return
-      end
-
-      linked_property = property || lease&.property || maintenance_request&.property ||
-        inspection&.property || damage_assessment&.property || property_ownership&.property
-      if linked_property && linked_property.organization_id == organization_id &&
-         !published_by.authorized_for_property?(linked_property, "publish_tenant_information")
-        errors.add(:published_by, "is not authorized to share documents for this property")
-      end
-
-      linked_records = [lease, inspection, maintenance_request, maintenance_financial_entry,
-        damage_assessment, property_ownership].compact
-      if linked_records.any? { |record| record.organization_id != organization_id }
-        errors.add(:base, "tenant-visible document parents must belong to the same organization")
-      end
-      parent_property_ids = [
-        lease&.property_id,
-        inspection&.property_id,
-        maintenance_request&.property_id,
-        maintenance_financial_entry&.maintenance_request&.property_id,
-        damage_assessment&.property_id,
-        property_ownership&.property_id
-      ].compact.uniq
-      expected_property_id = property_id || parent_property_ids.first
-      if parent_property_ids.length > 1 || (expected_property_id && parent_property_ids.any? { |id| id != expected_property_id })
-        errors.add(:base, "tenant-visible document parents must belong to the same property")
-      end
+    if uploaded_by && !uploaded_by.member_of?(organization_id) && !uploaded_by.platform_administrator?
+      errors.add(:uploaded_by, "must be an active member of the organization")
     end
     if property && property.organization_id != organization_id
       errors.add(:property, "must belong to the same organization")
     end
-
     return unless property_ownership
 
     if property_ownership.organization_id != organization_id
@@ -122,4 +84,40 @@ class Document < ApplicationRecord
     end
   end
 
+  def publication_metadata_is_consistent
+    if published_by && !published_by.member_of?(organization_id) && !published_by.platform_administrator?
+      errors.add(:published_by, "must be an active member of the organization")
+    end
+    return unless visibility == "tenant_visible"
+
+    if published_at.blank? || published_by.blank?
+      errors.add(:visibility, "requires a publisher and publication date")
+      return
+    end
+
+    linked_property = property || lease&.property || maintenance_request&.property ||
+      inspection&.property || damage_assessment&.property || property_ownership&.property
+    if linked_property && linked_property.organization_id == organization_id &&
+       !published_by.authorized_for_property?(linked_property, "publish_tenant_information")
+      errors.add(:published_by, "is not authorized to share documents for this property")
+    end
+
+    linked_records = [ lease, inspection, maintenance_request, maintenance_financial_entry,
+      damage_assessment, property_ownership ].compact
+    if linked_records.any? { |record| record.organization_id != organization_id }
+      errors.add(:base, "tenant-visible document parents must belong to the same organization")
+    end
+    parent_property_ids = [
+      lease&.property_id,
+      inspection&.property_id,
+      maintenance_request&.property_id,
+      maintenance_financial_entry&.maintenance_request&.property_id,
+      damage_assessment&.property_id,
+      property_ownership&.property_id
+    ].compact.uniq
+    expected_property_id = property_id || parent_property_ids.first
+    if parent_property_ids.length > 1 || (expected_property_id && parent_property_ids.any? { |id| id != expected_property_id })
+      errors.add(:base, "tenant-visible document parents must belong to the same property")
+    end
+  end
 end

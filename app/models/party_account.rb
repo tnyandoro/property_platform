@@ -11,7 +11,7 @@ class PartyAccount < ApplicationRecord
   has_one :tenant_profile, dependent: :restrict_with_error
 
   validates :status, inclusion: { in: STATUSES }
-  validates :party_id, uniqueness: { scope: [:organization_id, :user_id] }
+  validates :party_id, uniqueness: { scope: [ :organization_id, :user_id ] }
   validate :associations_belong_to_organization
   validate :verification_metadata_is_consistent
   validate :revocation_metadata_is_consistent
@@ -25,8 +25,14 @@ class PartyAccount < ApplicationRecord
   private
 
   def associations_belong_to_organization
-    [user, party, verified_by, revoked_by].compact.each do |record|
-      errors.add(:base, "linked records must belong to the same organization") if record.organization_id != organization_id
+    if party && party.organization_id != organization_id
+      errors.add(:party, "must belong to the same organization")
+    end
+
+    [ verified_by, revoked_by ].compact.each do |actor|
+      next if actor.member_of?(organization_id) || actor.platform_administrator?
+
+      errors.add(:base, "verifying and revoking users must be active members of the organization")
     end
   end
 

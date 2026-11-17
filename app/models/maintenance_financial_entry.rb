@@ -28,8 +28,8 @@ class MaintenanceFinancialEntry < ApplicationRecord
 
     errors.add(:organization, "must match the maintenance request") if organization_id != maintenance_request.organization_id
     errors.add(:currency, "must match the maintenance request") if currency.present? && currency != maintenance_request.currency
-    errors.add(:recorded_by, "must belong to the same organization") if recorded_by && recorded_by.organization_id != organization_id
-    errors.add(:decision_by, "must belong to the same organization") if decision_by && decision_by.organization_id != organization_id
+    errors.add(:recorded_by, "must be an active member of the organization") if recorded_by && !recorded_by.member_of?(organization_id) && !recorded_by.platform_administrator?
+    errors.add(:decision_by, "must be an active member of the organization") if decision_by && !decision_by.member_of?(organization_id) && !decision_by.platform_administrator?
     if party && party.organization_id != organization_id
       errors.add(:party, "must belong to the same organization")
     end

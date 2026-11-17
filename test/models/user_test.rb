@@ -13,6 +13,6 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "agent@example.com", user.email
     assert user.authenticate("correct horse battery staple")
     assert_not user.authenticate("wrong password")
-    assert_equal organization, user.organization
+    assert_equal organization, user.legacy_organization
   end
 end

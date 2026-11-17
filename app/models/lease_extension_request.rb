@@ -26,7 +26,6 @@ class LeaseExtensionRequest < ApplicationRecord
     errors.add(:requested_by, "must be the tenant profile user") if tenant_profile.user_id != requested_by_id
     errors.add(:tenant_profile, "must represent the tenant on this lease") if tenant_profile.party_id != lease.tenant_id
     errors.add(:tenant_profile, "must have a verified account") unless tenant_profile.party_account.verified?
-    errors.add(:requested_by, "must belong to the same organization") if requested_by.organization_id != organization_id
     if lease.status != "active" || (lease.end_date.present? && lease.end_date < Date.current)
       errors.add(:lease, "must be an eligible active lease")
     end
@@ -42,10 +41,10 @@ class LeaseExtensionRequest < ApplicationRecord
 
     if responded_at.blank? || responded_by.blank?
       errors.add(:responded_by, "and response date are required after the request is reviewed")
-    elsif responded_by.organization_id != organization_id
-      errors.add(:responded_by, "must belong to the same organization")
     elsif status == "withdrawn"
       errors.add(:responded_by, "must be the tenant who submitted the request") if responded_by_id != requested_by_id
+    elsif !responded_by.member_of?(organization_id)
+      errors.add(:responded_by, "must be an active member of the organization")
     elsif lease && !responded_by.authorized_for_property?(lease.property, "propose_lease_renewals")
       errors.add(:responded_by, "is not authorized to review extension requests for this property")
     end
