@@ -9,10 +9,10 @@ class CreateOrganizationMemberships < ActiveRecord::Migration[8.1]
     end
 
     add_index :organization_memberships,
-              [:organization_id, :user_id],
+              [ :organization_id, :user_id ],
               unique: true,
               name: "idx_organization_memberships_org_user"
-    add_index :organization_memberships, [:user_id, :status]
+    add_index :organization_memberships, [ :user_id, :status ]
 
     add_check_constraint :organization_memberships,
                          "status IN ('active', 'suspended', 'revoked')",
