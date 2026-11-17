@@ -142,7 +142,7 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     other_lease = create_lease(other_party, other_unit)
     create_tenant_request(other_user, other_party, other_lease, other_unit, "Other tenant request")
 
-    get "/api/v1/tenant/dashboard", headers: authenticate_as(@tenant_user)
+    get "/api/v1/tenant/dashboard", headers: authenticate_as(@tenant_user, workspace: "tenant")
 
     assert_response :success
     dashboard = response.parsed_body
