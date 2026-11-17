@@ -17,21 +17,64 @@ module Authentication
 
   def authenticate_user!
     payload = verified_token
-    user_id = payload && (payload["user_id"] || payload[:user_id])
-    Current.user = User.find_by(id: user_id)
-    Current.organization = Current.user&.organization
+    user_id = token_value(payload, "user_id")
+    user = User.find_by(id: user_id)
+    return authentication_required unless user
 
-    return if Current.user
+    workspace = token_value(payload, "workspace").presence || "management"
+    organization_id = token_value(payload, "organization_id")
 
-    render json: { error: "Authentication required" }, status: :unauthorized
+    case workspace
+    when "management"
+      membership = resolve_management_membership(
+        user,
+        organization_id,
+        token_value(payload, "membership_id")
+      )
+      return authentication_required unless membership
+
+      Current.user = user
+      Current.organization = membership.organization
+      Current.membership = membership
+      Current.workspace = "management"
+    when "tenant"
+      organization = resolve_tenant_organization(user, organization_id)
+      return authentication_required unless organization && tenant_account?(user, organization)
+
+      Current.user = user
+      Current.organization = organization
+      Current.membership = nil
+      Current.workspace = "tenant"
+    else
+      authentication_required
+    end
   end
 
-  def issue_token(user)
+  def issue_token(user, organization:, workspace:, membership: nil)
+    payload = {
+      user_id: user.id,
+      organization_id: organization.id,
+      workspace: workspace
+    }
+    payload[:membership_id] = membership.id if membership
+
     Rails.application.message_verifier(:authentication).generate(
-      { user_id: user.id },
+      payload,
       purpose: :access_token,
       expires_in: 24.hours
     )
+  end
+
+  def require_management_workspace!
+    return if Current.workspace == "management"
+
+    render json: { error: "Management workspace required" }, status: :forbidden
+  end
+
+  def require_tenant_workspace!
+    return if Current.workspace == "tenant"
+
+    render json: { error: "Tenant workspace required" }, status: :forbidden
   end
 
   def verified_token
@@ -44,5 +87,67 @@ module Authentication
     )
   rescue ActiveSupport::MessageVerifier::InvalidSignature
     nil
+  end
+
+  def token_value(payload, key)
+    return unless payload
+
+    payload[key] || payload[key.to_sym]
+  end
+
+  def resolve_management_membership(user, organization_id, membership_id)
+    membership = if organization_id.present?
+      user.membership_for(organization_id)
+    else
+      memberships = user.organization_memberships.active.order(:created_at, :id).limit(2).to_a
+      memberships.one? ? memberships.first : nil
+    end
+
+    return unless membership
+    return if membership_id.present? && membership.id.to_s != membership_id.to_s
+
+    membership
+  end
+
+  def resolve_tenant_organization(user, organization_id)
+    return Organization.find_by(id: organization_id) if organization_id.present?
+
+    organization_ids = eligible_tenant_profiles(user).map(&:organization_id).uniq
+    return unless organization_ids.one?
+
+    Organization.find_by(id: organization_ids.first)
+  end
+
+  def tenant_account?(user, organization)
+    return false unless user.email_verified_at.present?
+
+    eligible_tenant_profiles(user, organization).any?
+  end
+
+  def eligible_tenant_profiles(user, organization = nil)
+    profiles = TenantProfile.joins(:party_account)
+      .where(
+        party_accounts: {
+          user_id: user.id,
+          status: "verified"
+        }
+      )
+    profiles = profiles.where(organization_id: organization.id) if organization
+
+    profiles.select do |profile|
+      Lease.where(
+        organization_id: profile.organization_id,
+        tenant_id: profile.party_id,
+        status: "active"
+      ).where(
+        "start_date <= ? AND (end_date IS NULL OR end_date >= ?)",
+        Date.current,
+        Date.current
+      ).exists?
+    end
+  end
+
+  def authentication_required
+    render json: { error: "Authentication required" }, status: :unauthorized
   end
 end
