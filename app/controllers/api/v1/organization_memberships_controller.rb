@@ -44,15 +44,22 @@ module Api
       end
 
       def update
-        attributes = params.require(:membership).permit(:role, :status)
-        next_role = attributes.fetch(:role, @membership.role)
-        next_status = attributes.fetch(:status, @membership.status)
+        membership_params = params.require(:membership)
+        next_role = membership_params[:role].presence || @membership.role
+        next_status = membership_params[:status].presence || @membership.status
+
+        unless OrganizationMembership::ROLES.include?(next_role) &&
+            OrganizationMembership::STATUSES.include?(next_status)
+          return render json: { error: "Invalid membership role or status" }, status: :unprocessable_entity
+        end
 
         if removing_last_administrator?(@membership, next_role, next_status)
           return last_administrator_response
         end
 
-        if @membership.update(attributes)
+        @membership.role = next_role
+        @membership.status = next_status
+        if @membership.save
           render json: { membership: serialize(@membership) }
         else
           render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
