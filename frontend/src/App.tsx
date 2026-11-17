@@ -1078,8 +1078,33 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
   const [leases, setLeases] = useState(portfolio.leases ?? [])
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
+  const [inviteLease, setInviteLease] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteMessage, setInviteMessage] = useState('')
+  const [inviting, setInviting] = useState(false)
 
   useEffect(() => setLeases(portfolio.leases ?? []), [portfolio.leases])
+
+  async function sendInvitation(event: React.FormEvent) {
+    event.preventDefault()
+    if (!inviteLease) return
+    setInviting(true)
+    setError('')
+    setInviteMessage('')
+    try {
+      await api('/tenant_invitations', {
+        method: 'POST',
+        body: JSON.stringify({ tenant_invitation: { lease_id: inviteLease, email: inviteEmail } }),
+      })
+      setInviteMessage('Invitation sent. The tenant can use the link in their email to activate an account.')
+      setInviteLease(null)
+      setInviteEmail('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setInviting(false)
+    }
+  }
 
   const unitHistories = portfolio.units.map((unit) => ({
     unit,
@@ -1110,11 +1135,22 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
             {lease.pdf_url
               ? <a href={lease.pdf_url} target="_blank" rel="noreferrer">{lease.pdf_filename || 'View lease PDF'}</a>
               : <span>PDF not attached</span>}
+            {lease.status === 'active' && <button className="secondary-button" type="button" onClick={() => { setError(''); setInviteMessage(''); setInviteEmail(''); setInviteLease(lease.id) }}>Invite tenant</button>}
           </div>
         </div>)}
         {unitLeases.length > 5 && <p className="lease-history-note">Showing the latest 5 of {unitLeases.length} leases. Older lease records remain stored.</p>}
       </section>
     }) : <EmptyPanel label={portfolio.units.length ? 'No leases recorded yet' : 'Add a unit before recording a lease'} />}
+    {inviteMessage && <div className="success-banner" role="status">{inviteMessage}</div>}
+    {inviteLease && <div className="modal-backdrop" onClick={() => setInviteLease(null)}>
+      <form className="modal" onClick={(event) => event.stopPropagation()} onSubmit={sendInvitation}>
+        <div className="modal-header"><div><p className="eyebrow">Tenant access</p><h2>Invite tenant</h2></div><button type="button" className="icon-button" onClick={() => setInviteLease(null)}><X size={18} /></button></div>
+        <p className="login-help">Send a secure account activation link to the tenant on this lease.</p>
+        <label>Tenant email address<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} autoComplete="email" required /></label>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setInviteLease(null)}>Cancel</button><button className="primary-button" disabled={inviting}>{inviting ? 'Sending...' : 'Send invitation'}</button></div>
+      </form>
+    </div>}
     {showForm && <LeaseForm
       propertyId={propertyId}
       units={portfolio.units}
