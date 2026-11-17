@@ -70,7 +70,7 @@ class OrganizationMembershipsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "revoked", membership.reload.status
-    assert Membership.find_by(id: membership.id)
+    assert OrganizationMembership.find_by(id: membership.id)
   end
 
   test "non-administrator cannot manage organization memberships" do
