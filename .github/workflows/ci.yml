@@ -87,3 +87,20 @@ jobs:
       - name: Run full regression suite (existing baseline)
         run: bundle exec rails test
         continue-on-error: true
+
+  resolve_security_dependencies:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.6"
+
+      - name: Resolve patched dependencies
+        run: bundle update rails bcrypt crass loofah msgpack net-ssh nokogiri puma rack rails-html-sanitizer
+
+      - name: Print resolved lockfile changes
+        run: git diff -- Gemfile.lock
