@@ -77,7 +77,9 @@ class MaintenanceSchedule < ApplicationRecord
       errors.add(:room, "must belong to this property and unit")
     end
     [assigned_to, created_by].compact.each do |user|
-      errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
+      next if user.member_of?(organization_id) || user.platform_administrator?
+
+      errors.add(:base, "users must be active members of the organization")
     end
     if assigned_to && property && !property.property_assignments.where(
       user_id: assigned_to_id,
