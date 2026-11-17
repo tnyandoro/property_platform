@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       delete "logout", to: "sessions#destroy"
       resources :organization_memberships, only: %i[index create update destroy]
       get "tenant/dashboard", to: "tenant/dashboard#show"
+      get "owner/dashboard", to: "owner/dashboard#show"
       get "parties", to: "parties#index"
       resources :properties
       scope "properties/:property_id" do
@@ -69,6 +70,6 @@ Rails.application.routes.draw do
     end
   end
 
-  # Defines the root path route ("/")
+  # Defines the root path route (/")
   # root "posts#index"
 end
