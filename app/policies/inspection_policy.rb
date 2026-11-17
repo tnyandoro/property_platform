@@ -3,8 +3,8 @@ class InspectionPolicy < ApplicationPolicy
   # Only the inspector or a manager may update.
   # Only managers may lock (destroy is not exposed).
 
-  def index?  = property_assigned?
-  def show?   = property_assigned?
+  def index? = property_assigned?
+  def show? = property_assigned?
   def create? = property_assigned?
 
   def update?
@@ -23,18 +23,21 @@ class InspectionPolicy < ApplicationPolicy
   end
 
   def property_assigned?
-    same_organization? &&
+    same_organization? && (
+      organization_administrator? ||
       property.property_assignments.exists?(
         user_id: user.id,
-        organization_id: user.organization_id
+        organization_id: organization_id
       )
+    )
   end
 
   def property_manager?
-    property.property_assignments.exists?(
-      user_id: user.id,
-      organization_id: user.organization_id,
-      assignment_type: "manager"
-    )
+    organization_administrator? ||
+      property.property_assignments.exists?(
+        user_id: user.id,
+        organization_id: organization_id,
+        assignment_type: "manager"
+      )
   end
 end
