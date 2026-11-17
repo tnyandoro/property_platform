@@ -52,7 +52,7 @@ class TenantInvitation < ApplicationRecord
   end
 
   def inviter_is_authorized
-    if invited_by && invited_by.organization_id != organization_id && !invited_by.platform_administrator?
+    if invited_by && !invited_by.member_of?(organization_id) && !invited_by.platform_administrator?
       errors.add(:invited_by, "must belong to the same organization")
     end
     if property && invited_by && !invited_by.authorized_for_property?(property, "invite_tenants")
@@ -67,7 +67,6 @@ class TenantInvitation < ApplicationRecord
   def acceptance_metadata_is_consistent
     if status == "accepted"
       errors.add(:accepted_user, "must match the invitation email and organization") unless accepted_user &&
-        accepted_user.organization_id == organization_id &&
         accepted_user.email == target_email &&
         accepted_user.email_verified_at.present?
       unless accepted_user&.party_accounts&.verified&.joins(:tenant_profile)&.exists?(
