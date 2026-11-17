@@ -5,6 +5,7 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     @organization = Organization.create!(name: "Tenant dashboard #{SecureRandom.hex(4)}")
     @manager = create_user(@organization, "manager", organization_role: "administrator")
     @tenant_user = create_user(@organization, "tenant")
+    @tenant_user.update!(email_verified_at: Time.current)
     @property = @organization.properties.create!(
       name: "Garden House",
       property_type: "residential",
