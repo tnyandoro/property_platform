@@ -16,14 +16,15 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: "3.3.6"
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
-      
+
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
-      
+
   lint:
     runs-on: ubuntu-latest
     env:
@@ -35,6 +36,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: "3.3.6"
           bundler-cache: true
 
       - name: Prepare RuboCop cache
@@ -49,7 +51,6 @@ jobs:
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
-
 
   test:
     runs-on: ubuntu-latest
@@ -77,6 +78,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: "3.3.6"
           bundler-cache: true
 
       - name: Prepare test database and run Rails tests
