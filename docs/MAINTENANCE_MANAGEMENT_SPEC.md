@@ -35,7 +35,7 @@ The repository already contains relevant foundations. Verify their current imple
 - `DamageAssessment` already captures a damage description, severity, responsibility (`landlord`, `tenant`, `shared`, `unknown`), estimated/agreed cost and resolution status.
 - `Document` can already be associated with a `maintenance_request`, and document records are tenant-scoped.
 - `Property` already has many `maintenance_requests` and `damage_assessments`.
-- The application uses UUID primary keys, organisation-level tenant scoping, `TenantScoped`, `Auditable` and Pundit policies. Preserve these conventions.
+- The application uses UUID primary keys, organisation-level tenant scoping for business records, `TenantScoped`, `Auditable` and Pundit policies. Users are global authentication identities; organisation-specific authority comes from an active `OrganizationMembership`, while tenant access comes from a verified User-to-Party relationship and eligible Lease. Preserve organisation isolation for business records and never treat a User's legacy `organization_id` as the long-term authorization source.
 - The frontend is React + TypeScript. The property portfolio response already exposes a maintenance collection, but inspect its full current shape and API loading path before changing it.
 
 Do not create a duplicate maintenance request/work-order table if the existing model can be evolved safely. Do not duplicate damage-assessment, party, document, lease, inspection or audit functionality.
