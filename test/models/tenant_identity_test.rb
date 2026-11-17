@@ -65,7 +65,7 @@ class TenantIdentityTest < ActiveSupport::TestCase
     )
 
     assert_not agent.authorized_for_property?(@property, "invite_tenants")
-    assignment.update!(capabilities: ["invite_tenants"])
+    assignment.update!(capabilities: [ "invite_tenants" ])
     assert agent.authorized_for_property?(@property, "invite_tenants")
     assert @admin.authorized_for_property?(@property, "invite_tenants")
 
@@ -95,7 +95,7 @@ class TenantIdentityTest < ActiveSupport::TestCase
       user: other_user,
       assignment_type: "manager",
       starts_at: 1.hour.ago,
-      capabilities: ["invite_tenants"]
+      capabilities: [ "invite_tenants" ]
     )
 
     assert_not assignment.valid?
