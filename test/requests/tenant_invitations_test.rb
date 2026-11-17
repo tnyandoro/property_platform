@@ -111,6 +111,62 @@ class TenantInvitationsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "management users can list invitations for an authorised property" do
+    create_invitation_token
+
+    get "/api/v1/tenant_invitations",
+      params: { property_id: @property.id },
+      headers: authenticate_as(@admin, workspace: "management"),
+      as: :json
+
+    assert_response :success
+    invitations = response.parsed_body.fetch("invitations")
+    assert_equal 1, invitations.length
+    assert_equal "new.tenant@example.com", invitations.first.fetch("email")
+    assert_equal "pending", invitations.first.fetch("status")
+  end
+
+  test "resending a pending invitation rotates its token and extends expiry" do
+    old_token = create_invitation_token
+    invitation = TenantInvitation.find_by!(token_digest: Digest::SHA256.hexdigest(old_token))
+    old_digest = invitation.token_digest
+    old_expiry = invitation.expires_at
+
+    post "/api/v1/tenant_invitations/#{invitation.id}/resend",
+      headers: authenticate_as(@admin, workspace: "management"),
+      as: :json
+
+    assert_response :success
+    invitation.reload
+    assert_not_equal old_digest, invitation.token_digest
+    assert_operator invitation.expires_at, :>, old_expiry
+    assert_equal 1, ActionMailer::Base.deliveries.length
+
+    new_token = ActionMailer::Base.deliveries.last.body.encoded[/token=([A-Za-z0-9_-]+)/, 1]
+    assert new_token.present?
+    get "/api/v1/tenant/invitations/#{old_token}"
+    assert_response :not_found
+    get "/api/v1/tenant/invitations/#{new_token}"
+    assert_response :success
+  end
+
+  test "revoking an invitation immediately invalidates its activation link" do
+    token = create_invitation_token
+    invitation = TenantInvitation.find_by!(token_digest: Digest::SHA256.hexdigest(token))
+
+    post "/api/v1/tenant_invitations/#{invitation.id}/revoke",
+      headers: authenticate_as(@admin, workspace: "management"),
+      as: :json
+
+    assert_response :success
+    assert_equal "revoked", invitation.reload.status
+    assert invitation.revoked_at.present?
+    assert_equal @admin, invitation.revoked_by
+
+    get "/api/v1/tenant/invitations/#{token}"
+    assert_response :not_found
+  end
+
   private
 
   def create_invitation_token
