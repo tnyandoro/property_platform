@@ -162,7 +162,8 @@ class MaintenanceRequest < ApplicationRecord
   def capture_verification_metadata
     return unless will_save_change_to_status?
 
-    actor = Current.user if Current.user&.organization_id == organization_id
+    actor = Current.user if Current.workspace == "management" &&
+      Current.organization&.id == organization_id && Current.membership&.active?
     if status == "rejected"
       self.rejected_by ||= actor
       self.rejected_at ||= Time.current if rejected_by
