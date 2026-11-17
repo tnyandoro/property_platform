@@ -263,16 +263,15 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
   test "records quotations, invoices, and payments as separate entries" do
     request = create_request
 
-    post action_path(request, "financial_entries"),
-         params: { financial_entry: { entry_type: "quotation", amount: "20.00", currency: "ZAR", occurred_on: Date.current.to_s } },
+    post action_path(request, "quotes"),
+         params: { quote: { amount: "20.00", currency: "ZAR", occurred_on: Date.current.to_s } },
          headers: @auth_headers,
          as: :json
     assert_response :created
 
-    post action_path(request, "financial_entries"),
+    post action_path(request, "invoices"),
          params: {
-           financial_entry: {
-             entry_type: "invoice",
+           invoice: {
              amount: "20.00",
              currency: "ZAR",
              occurred_on: Date.current.to_s,
@@ -284,10 +283,9 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     assert_response :created
     invoice_id = JSON.parse(response.body).fetch("id")
 
-    post action_path(request, "financial_entries"),
+    post action_path(request, "payments"),
          params: {
-           financial_entry: {
-             entry_type: "payment",
+           payment: {
              amount: "20.00",
              currency: "ZAR",
              occurred_on: Date.current.to_s,
