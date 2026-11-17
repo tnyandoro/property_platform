@@ -28,7 +28,7 @@ class MaintenanceCostAllocation < ApplicationRecord
 
     errors.add(:organization, "must match the maintenance request") if organization_id != maintenance_request.organization_id
     errors.add(:currency, "must match the maintenance request") if currency.present? && currency != maintenance_request.currency
-    errors.add(:approved_by, "must belong to the same organization") if approved_by && approved_by.organization_id != organization_id
+    errors.add(:approved_by, "must be an active member of the organization") if approved_by && !approved_by.member_of?(organization_id) && !approved_by.platform_administrator?
     if party && party.organization_id != organization_id
       errors.add(:party, "must belong to the same organization")
     end
