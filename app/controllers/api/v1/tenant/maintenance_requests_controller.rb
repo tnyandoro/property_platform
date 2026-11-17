@@ -90,7 +90,7 @@ module Api
         private
 
         def set_tenant_profile
-          @tenant_profile = TenantProfile.joins(:party_account)
+          profiles = TenantProfile.joins(:party_account)
             .where(
               organization_id: current_organization.id,
               party_accounts: {
@@ -99,7 +99,9 @@ module Api
                 status: "verified"
               }
             )
-            .first
+            .limit(2)
+            .to_a
+          @tenant_profile = profiles.one? ? profiles.first : nil
           render_not_found unless @tenant_profile
         end
 
