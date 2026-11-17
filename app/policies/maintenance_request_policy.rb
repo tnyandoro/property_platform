@@ -1,12 +1,12 @@
 class MaintenanceRequestPolicy < ApplicationPolicy
-  def index?   = property_assigned?
-  def show?    = property_assigned?
-  def create?  = manage?
-  def update?  = manage?
-  def manage?  = property_manager?
-  def assign?  = manage?
+  def index? = property_assigned?
+  def show? = property_assigned?
+  def create? = manage?
+  def update? = manage?
+  def manage? = property_manager?
+  def assign? = manage?
   def approve? = manage?
-  def verify?  = manage?
+  def verify? = manage?
   def destroy? = false
 
   private
@@ -16,24 +16,27 @@ class MaintenanceRequestPolicy < ApplicationPolicy
   end
 
   def property_assigned?
-    property &&
-      property.organization_id == user.organization_id &&
+    same_organization? && (
+      organization_administrator? ||
       property.property_assignments.where(
         user_id: user.id,
-        organization_id: user.organization_id
+        organization_id: organization_id
       ).where("starts_at <= ?", Time.current)
        .where("ends_at IS NULL OR ends_at >= ?", Time.current)
        .exists?
+    )
   end
 
   def property_manager?
-    property_assigned? &&
+    property_assigned? && (
+      organization_administrator? ||
       property.property_assignments.where(
         user_id: user.id,
-        organization_id: user.organization_id,
+        organization_id: organization_id,
         assignment_type: "manager"
       ).where("starts_at <= ?", Time.current)
        .where("ends_at IS NULL OR ends_at >= ?", Time.current)
        .exists?
+    )
   end
 end
