@@ -13,68 +13,76 @@ module Api
       end
 
       def create
-        user = find_user
-        return if performed?
+        current_organization.with_lock do
+          user = find_user
+          return if performed?
 
-        role = params.dig(:membership, :role).presence || "member"
-        membership = current_organization.organization_memberships.find_by(user_id: user.id)
+          role = params.dig(:membership, :role).presence || "member"
+          membership = current_organization.organization_memberships.find_by(user_id: user.id)
 
-        if membership&.active?
-          return render json: { error: "User is already an active member" }, status: :conflict
-        end
+          if membership&.active?
+            return render json: { error: "User is already an active member" }, status: :conflict
+          end
 
-        if membership
-          saved = membership.update(role: role, status: "active")
-          status = :ok
-        else
-          membership = current_organization.organization_memberships.new(
-            user: user,
-            role: role,
-            status: "active"
-          )
-          saved = membership.save
-          status = :created
-        end
+          if membership
+            saved = membership.update(role: role, status: "active")
+            status = :ok
+          else
+            membership = current_organization.organization_memberships.new(
+              user: user,
+              role: role,
+              status: "active"
+            )
+            saved = membership.save
+            status = :created
+          end
 
-        if saved
-          render json: { membership: serialize(membership) }, status: status
-        else
-          render json: { errors: membership.errors.full_messages }, status: :unprocessable_entity
+          if saved
+            render json: { membership: serialize(membership) }, status: status
+          else
+            render json: { errors: membership.errors.full_messages }, status: :unprocessable_entity
+          end
         end
       end
 
       def update
-        membership_params = params.require(:membership)
-        next_role = membership_params[:role].presence || @membership.role
-        next_status = membership_params[:status].presence || @membership.status
+        current_organization.with_lock do
+          @membership.reload
+          membership_params = params.require(:membership)
+          next_role = membership_params[:role].presence || @membership.role
+          next_status = membership_params[:status].presence || @membership.status
 
-        unless OrganizationMembership::ROLES.include?(next_role) &&
-            OrganizationMembership::STATUSES.include?(next_status)
-          return render json: { error: "Invalid membership role or status" }, status: :unprocessable_entity
-        end
+          unless OrganizationMembership::ROLES.include?(next_role) &&
+              OrganizationMembership::STATUSES.include?(next_status)
+            return render json: { error: "Invalid membership role or status" }, status: :unprocessable_entity
+          end
 
-        if removing_last_administrator?(@membership, next_role, next_status)
-          return last_administrator_response
-        end
+          if removing_last_administrator?(@membership, next_role, next_status)
+            return last_administrator_response
+          end
 
-        @membership.role = next_role
-        @membership.status = next_status
-        if @membership.save
-          render json: { membership: serialize(@membership) }
-        else
-          render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
+          @membership.role = next_role
+          @membership.status = next_status
+          if @membership.save
+            render json: { membership: serialize(@membership) }
+          else
+            render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
+          end
         end
       end
 
       def destroy
-        if removing_last_administrator?(@membership, @membership.role, "revoked")
-          return last_administrator_response
-        end
+        current_organization.with_lock do
+          @membership.reload
+          if removing_last_administrator?(@membership, @membership.role, "revoked")
+            return last_administrator_response
+          end
 
-        if @membership.update(status: "revoked")
-          render json: { membership: serialize(@membership) }
-        else
-          render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
+          if @membership.update(status: "revoked")
+            render json: { membership: serialize(@membership) }
+          else
+            render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
+          end
         end
       end
 
