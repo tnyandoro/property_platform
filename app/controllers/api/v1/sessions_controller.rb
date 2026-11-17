@@ -29,16 +29,24 @@ module Api
         expires_at = token_value(payload, "expires_at").to_i
 
         if token_id.present? && user && expires_at > Time.current.to_i
-          AccessTokenRevocation.create_or_find_by!(token_id: token_id) do |revocation|
-            revocation.user = user
-            revocation.expires_at = Time.zone.at(expires_at)
-          end
-          AccessTokenRevocation.where("expires_at <= ?", Time.current).delete_all
+          now = Time.current
+          AccessTokenRevocation.insert_all(
+            [
+              {
+                id: SecureRandom.uuid,
+                user_id: user.id,
+                token_id: token_id,
+                expires_at: Time.zone.at(expires_at),
+                created_at: now,
+                updated_at: now
+              }
+            ],
+            unique_by: :index_access_token_revocations_on_token_id
+          )
+          AccessTokenRevocation.where("expires_at <= ?", now).delete_all
         end
 
         head :no_content
-      rescue ActiveRecord::RecordInvalid => error
-        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       private

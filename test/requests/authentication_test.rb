@@ -39,8 +39,16 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Managed-only party"
     assert_not_includes response.body, "Home-only party"
 
+    token_payload = Rails.application.message_verifier(:authentication).verified(
+      token,
+      purpose: :access_token
+    )
     delete "/api/v1/logout", headers: bearer_headers(token)
-    assert_response :no_content, response.body
+    assert_response :no_content
+    assert AccessTokenRevocation.exists?(
+      token_id: token_payload["token_id"],
+      user_id: user.id
+    )
 
     get "/api/v1/parties", headers: bearer_headers(token)
     assert_response :unauthorized
