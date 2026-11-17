@@ -84,4 +84,42 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert membership.errors[:role].any?
     assert membership.errors[:status].any?
   end
+  test "uses the target organisation membership when checking property capabilities" do
+    home = Organization.create!(name: "Home organization")
+    managed = Organization.create!(name: "Managed organization")
+    user = home.users.create!(
+      email: "manager@example.com",
+      first_name: "Manny",
+      last_name: "Manager",
+      password: "password123"
+    )
+    user.organization_memberships.create!(organization: managed, role: "member", status: "active")
+    property = managed.properties.create!(name: "Managed property", property_type: "residential")
+    property.property_assignments.create!(
+      organization: managed,
+      user: user,
+      assignment_type: "manager",
+      starts_at: Time.current,
+      capabilities: ["invite_tenants"]
+    )
+
+    assert user.authorized_for_property?(property, "invite_tenants")
+    assert_equal managed, user.membership_for(managed.id).organization
+  end
+
+  test "an administrator membership grants organisation-level property authority" do
+    home = Organization.create!(name: "Administrator home")
+    managed = Organization.create!(name: "Administrator managed")
+    user = home.users.create!(
+      email: "multi-admin@example.com",
+      first_name: "Ari",
+      last_name: "Admin",
+      password: "password123"
+    )
+    user.organization_memberships.create!(organization: managed, role: "administrator", status: "active")
+    property = managed.properties.create!(name: "Admin property", property_type: "residential")
+
+    assert user.authorized_for_property?(property, "invite_tenants")
+  end
+
 end
