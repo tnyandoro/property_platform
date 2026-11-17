@@ -40,8 +40,8 @@ class LeaseRenewalProposal < ApplicationRecord
     if !%w[active expired].include?(lease.status)
       errors.add(:lease, "must be active or expired to propose a renewal")
     end
-    [created_by, responded_by].compact.each do |user|
-      errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
+    if created_by && !created_by.member_of?(organization_id)
+      errors.add(:created_by, "must be an active member of the organization")
     end
   end
 
