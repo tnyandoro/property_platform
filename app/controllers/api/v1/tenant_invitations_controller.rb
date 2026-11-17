@@ -59,7 +59,7 @@ module Api
       rescue ActiveRecord::RecordInvalid => error
         render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       rescue StandardError => error
-        if invitation&.persisted? && invitation.pending?
+        if invitation&.persisted? && invitation.status == "pending"
           invitation.update(status: "revoked", revoked_by: current_user, revoked_at: Time.current)
         end
         Rails.logger.error("Tenant invitation delivery failed: #{error.class}: #{error.message}")
