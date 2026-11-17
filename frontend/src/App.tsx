@@ -1,3 +1,4 @@
+import React, { Fragment } from 'react';
 import { useEffect, useState } from 'react'
 import { Building2, CalendarPlus, ChevronDown, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench, X } from 'lucide-react'
 import { api, responseError } from './api'
@@ -1134,7 +1135,11 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
     setInviteMessage('')
     try {
       await api(`/tenant_invitations/${id}/${action}`, { method: 'POST' })
-      setInviteMessage(action === 'resend' ? 'A new activation link has been generated. Check the development mail output or the tenant's inbox.' : 'Invitation revoked. Its activation link can no longer be used.')
+     setInviteMessage(
+        action === 'resend'
+          ? "A new activation link has been generated. Check the development mail output or the tenant's inbox."
+          : 'Invitation revoked. Its activation link can no longer be used.'
+      )
       await loadInvitations()
     } catch (err) {
       setError((err as Error).message)
@@ -1161,7 +1166,7 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
       const visibleLeases = unitLeases.slice(0, 5)
       return <section className="lease-unit-history" key={unit.id}>
         <h4>{label}</h4>
-        {visibleLeases.map((lease) => <React.Fragment key={lease.id}>
+        {visibleLeases.map((lease) => <Fragment key={lease.id}>
         <div className="lease-row">
           <div className="lease-row-main">
             <strong>{lease.tenant_name || 'Tenant not recorded'}</strong>
@@ -1184,7 +1189,7 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
             <button className="secondary-button danger-button" type="button" disabled={invitationAction === invitation.id} onClick={() => manageInvitation(invitation.id, 'revoke')}>Revoke</button>
           </div>}
         </div>)}
-        </React.Fragment>)}
+        </Fragment>)}
         {unitLeases.length > 5 && <p className="lease-history-note">Showing the latest 5 of {unitLeases.length} leases. Older lease records remain stored.</p>}
       </section>
     }) : <EmptyPanel label={portfolio.units.length ? 'No leases recorded yet' : 'Add a unit before recording a lease'} />}
