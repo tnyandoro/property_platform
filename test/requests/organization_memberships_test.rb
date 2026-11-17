@@ -150,6 +150,8 @@ class OrganizationMembershipsTest < ActionDispatch::IntegrationTest
     membership = user.membership_for(organization)
     token = Rails.application.message_verifier(:authentication).generate(
       {
+        token_id: SecureRandom.uuid,
+        expires_at: 24.hours.from_now.to_i,
         user_id: user.id,
         organization_id: organization.id,
         membership_id: membership.id,

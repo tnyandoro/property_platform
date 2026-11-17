@@ -17,6 +17,9 @@ module Authentication
 
   def authenticate_user!
     payload = verified_token
+    return authentication_required unless payload
+    return authentication_required if token_revoked?(payload)
+
     user_id = token_value(payload, "user_id")
     user = User.find_by(id: user_id)
     return authentication_required unless user
@@ -51,7 +54,10 @@ module Authentication
   end
 
   def issue_token(user, organization:, workspace:, membership: nil)
+    expires_at = 24.hours.from_now
     payload = {
+      token_id: SecureRandom.uuid,
+      expires_at: expires_at.to_i,
       user_id: user.id,
       organization_id: organization.id,
       workspace: workspace
@@ -61,7 +67,7 @@ module Authentication
     Rails.application.message_verifier(:authentication).generate(
       payload,
       purpose: :access_token,
-      expires_in: 24.hours
+      expires_at: expires_at
     )
   end
 
@@ -87,6 +93,13 @@ module Authentication
     )
   rescue ActiveSupport::MessageVerifier::InvalidSignature
     nil
+  end
+
+  def token_revoked?(payload)
+    token_id = token_value(payload, "token_id")
+    return true if token_id.blank?
+
+    AccessTokenRevocation.active.exists?(token_id: token_id)
   end
 
   def token_value(payload, key)

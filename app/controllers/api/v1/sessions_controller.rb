@@ -1,7 +1,7 @@
 module Api
   module V1
     class SessionsController < ApplicationController
-      skip_before_action :authenticate_user!, only: :create
+      skip_before_action :authenticate_user!, only: %i[create destroy]
       skip_before_action :require_management_workspace!, only: %i[create destroy]
 
       def create
@@ -23,6 +23,19 @@ module Api
       end
 
       def destroy
+        payload = verified_token
+        token_id = token_value(payload, "token_id")
+        user = User.find_by(id: token_value(payload, "user_id"))
+        expires_at = token_value(payload, "expires_at").to_i
+
+        if token_id.present? && user && expires_at > Time.current.to_i
+          AccessTokenRevocation.create_or_find_by!(token_id: token_id) do |revocation|
+            revocation.user = user
+            revocation.expires_at = Time.zone.at(expires_at)
+          end
+          AccessTokenRevocation.where("expires_at <= ?", Time.current).delete_all
+        end
+
         head :no_content
       end
 

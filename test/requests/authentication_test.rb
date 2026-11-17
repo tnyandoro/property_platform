@@ -38,6 +38,16 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Managed-only party"
     assert_not_includes response.body, "Home-only party"
+
+    delete "/api/v1/logout", headers: bearer_headers(token)
+    assert_response :no_content
+
+    get "/api/v1/parties", headers: bearer_headers(token)
+    assert_response :unauthorized
+
+    # Logout is idempotent and does not disclose whether a token was already revoked.
+    delete "/api/v1/logout", headers: bearer_headers(token)
+    assert_response :no_content
   end
 
   test "legacy user-only token is rejected when organization context is ambiguous" do
@@ -50,7 +60,11 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
       status: "active"
     )
     token = Rails.application.message_verifier(:authentication).generate(
-      { user_id: user.id },
+      {
+        user_id: user.id,
+        token_id: SecureRandom.uuid,
+        expires_at: 24.hours.from_now.to_i
+      },
       purpose: :access_token,
       expires_in: 24.hours
     )

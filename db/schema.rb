@@ -10,10 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_17_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_17_000200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
+
+  create_table "access_token_revocations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.uuid "user_id", null: false
+    t.string "token_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_access_token_revocations_on_expires_at"
+    t.index ["token_id"], name: "index_access_token_revocations_on_token_id", unique: true
+    t.index ["user_id", "expires_at"], name: "index_access_token_revocations_on_user_id_and_expires_at"
+  end
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "blob_id", null: false
@@ -909,6 +920,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_000100) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "access_token_revocations", "users"
   add_foreign_key "audit_logs", "organizations"
   add_foreign_key "audit_logs", "users", column: "actor_id"
   add_foreign_key "buildings", "organizations"
