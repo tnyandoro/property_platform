@@ -57,7 +57,7 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: URI(ENV.fetch("FRONTEND_URL", "https://app.example.com")).host }
+  config.action_mailer.default_url_options = { host: ENV.fetch("FRONTEND_HOST", "app.example.com") }
 
   # Resend SMTP. Set RESEND_API_KEY only after saraphim.co.za is verified with Resend.
   if ENV["RESEND_API_KEY"].present?
