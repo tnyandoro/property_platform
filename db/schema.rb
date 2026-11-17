@@ -1050,4 +1050,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_000000) do
   add_foreign_key "units", "organizations"
   add_foreign_key "units", "properties"
   add_foreign_key "users", "organizations"
+  add_foreign_key "organization_memberships", "organizations"
+  add_foreign_key "organization_memberships", "users"
 end
