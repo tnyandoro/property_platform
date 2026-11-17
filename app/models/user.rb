@@ -13,7 +13,7 @@ class User < ApplicationRecord
   has_many :platform_administrator_grants, dependent: :restrict_with_error
 
   ORGANIZATION_ROLES = %w[member administrator].freeze
-  OWNER_CAPABILITIES = %w[propose_lease_renewals].freeze
+  OWNER_CAPABILITIES = %w[view_owner_portfolio propose_lease_renewals].freeze
 
   attr_accessor :skip_initial_organization_membership
 
@@ -38,28 +38,28 @@ class User < ApplicationRecord
     platform_administrator_grants.active.exists?
   end
 
+  def verified_owner_party_ids(organization)
+    party_accounts.verified.where(organization_id: organization).pluck(:party_id)
+  end
+
+  def owner_of_property?(property)
+    return false unless property
+
+    PropertyOwnership.active_on(Date.current).where(
+      organization_id: property.organization_id,
+      property_id: property.id,
+      party_id: verified_owner_party_ids(property.organization_id),
+      verification_status: "verified"
+    ).exists?
+  end
+
   def authorized_for_property?(property, capability)
     return false unless property
+
     platform_admin = platform_administrator?
     membership = membership_for(property.organization_id)
     return true if platform_admin || membership&.administrator?
-
-    # A verified owner may access their property without being an employee
-    # or member of the organisation that manages it.
-    verified_party_ids = party_accounts.verified
-      .where(organization_id: property.organization_id)
-      .pluck(:party_id)
-    if PropertyOwnership.active_on(Date.current)
-        .where(
-          organization_id: property.organization_id,
-          property_id: property.id,
-          party_id: verified_party_ids,
-          verification_status: "verified"
-        )
-        .exists?
-      return OWNER_CAPABILITIES.include?(capability)
-    end
-
+    return OWNER_CAPABILITIES.include?(capability) if owner_of_property?(property)
     return false unless membership
 
     property_assignments
