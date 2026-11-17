@@ -27,11 +27,12 @@ The only financial terms included in tenant responses are the tenant's own agree
 Verify the live code and schema before implementation. The current foundations include:
 
 - `User` is the global authentication identity and uses `has_secure_password`. `OrganizationMembership` links that identity to one or more organisations and carries the organisation-specific role and membership status. The existing `users.organization_id` and `users.organization_role` fields are transitional compatibility fields; do not treat them as the long-term authority. Existing email uniqueness is organisation-scoped, so duplicate-email identities must be reconciled explicitly before enforcing global email uniqueness.
-- `Party` is the organisation-scoped counterparty record. `Lease` references one tenant Party, property and unit; there is no User-to-Party link today.
-- `PropertyAssignment` is the existing property access foundation. `PropertyOwnership` associates an owner Party with a property but does not link that Party to an account.
-- `Document` and Active Storage support lease and maintenance evidence. Documents have no tenant visibility flag.
-- The property currently stores a cover-photo URL; property photographs do not have per-photo tenant visibility controls.
-- The tenant API, tenant profile, invitations, lease renewal workflow and persisted tenant notifications do not exist.
+- `Party` is the organisation-scoped counterparty record. `Lease` references one tenant Party, property and unit. `PartyAccount` now provides an explicit, verified User-to-Party relationship, and `TenantProfile` stores the organisation-scoped tenant profile.
+- `PropertyAssignment` remains the staff/property access foundation. `PropertyOwnership` associates an owner Party with a property; verified PartyAccount links can support owner capability checks, but there is not yet a separate owner workspace or owner-facing API.
+- `TenantInvitation` exists with a token digest, expiry and lifecycle validations. Invitation creation/delivery and public activation endpoints are not yet exposed.
+- `LeaseRenewalProposal`, `LeaseExtensionRequest` and `TenantNotification` models exist. Tenant response/extension endpoints and notification delivery/read-management endpoints are still outstanding.
+- `Document` and `PropertyPhoto` support explicit `internal` / `tenant_visible` states. The current tenant dashboard does not yet expose property photographs or implement the full document/photograph delivery surface.
+- A read-only `GET /api/v1/tenant/dashboard` endpoint exists. Tenant maintenance submission and other tenant write actions are not yet exposed as tenant-workspace routes.
 - The management portfolio contains management-only property, ownership, lease and maintenance data. It is not a tenant response contract.
 
 `TenantScoped` validates an organisation association but is not automatic query scoping. Every tenant read and write must explicitly scope the current account, Party, eligible Lease and associated property/premises.
