@@ -180,12 +180,12 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -196,13 +196,13 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              party_id: other_tenant.id,
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -214,13 +214,13 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Tenant and lease verified.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              party_id: tenant.id,
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -235,7 +235,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{ responsible_party: "owner", allocated_amount: "200", currency: "ZAR" }]
+           allocations: [ { responsible_party: "owner", allocated_amount: "200", currency: "ZAR" } ]
          },
          headers: @auth_headers,
          as: :json
@@ -251,7 +251,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{ responsible_party: "owner", allocated_amount: "not-an-amount", currency: "ZAR" }]
+           allocations: [ { responsible_party: "owner", allocated_amount: "not-an-amount", currency: "ZAR" } ]
          },
          headers: @auth_headers,
          as: :json
@@ -622,7 +622,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
       monthly_rent: 1000,
       rent_currency: "ZAR"
     )
-    [lease, tenant]
+    [ lease, tenant ]
   end
 
   def requests_path
