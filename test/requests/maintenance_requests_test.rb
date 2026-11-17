@@ -620,7 +620,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
       start_date: Date.current,
       end_date: 1.year.from_now.to_date,
       monthly_rent: 1000,
-      currency: "ZAR"
+      rent_currency: "ZAR"
     )
     [lease, tenant]
   end
