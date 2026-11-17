@@ -14,6 +14,8 @@ module Api
 
       def create
         current_organization.with_lock do
+          return unless require_current_administrator!
+
           user = find_user
           return if performed?
 
@@ -48,6 +50,8 @@ module Api
       def update
         current_organization.with_lock do
           @membership.reload
+          return unless require_current_administrator!
+
           membership_params = params.require(:membership)
           next_role = membership_params[:role].presence || @membership.role
           next_status = membership_params[:status].presence || @membership.status
@@ -74,6 +78,8 @@ module Api
       def destroy
         current_organization.with_lock do
           @membership.reload
+          return unless require_current_administrator!
+
           if removing_last_administrator?(@membership, @membership.role, "revoked")
             return last_administrator_response
           end
@@ -92,6 +98,15 @@ module Api
         return if Current.membership&.administrator? || current_user.platform_administrator?
 
         render json: { error: "Organization administrator access required" }, status: :forbidden
+      end
+
+      def require_current_administrator!
+        membership = current_user.membership_for(current_organization)
+        Current.membership = membership
+        return true if membership&.administrator? || current_user.platform_administrator?
+
+        render json: { error: "Organization administrator access required" }, status: :forbidden
+        false
       end
 
       def set_membership
