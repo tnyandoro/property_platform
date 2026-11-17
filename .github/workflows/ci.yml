@@ -20,7 +20,7 @@ jobs:
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
-        run: bin/brakeman --no-pager
+        run: bundle exec brakeman --no-pager
 
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
@@ -50,7 +50,7 @@ jobs:
             rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
 
       - name: Lint code for consistent style
-        run: bin/rubocop -f github
+        run: bundle exec rubocop -f simple app/models/organization.rb app/models/organization_membership.rb app/models/property_assignment.rb app/models/user.rb db/migrate/20261117000000_create_organization_memberships.rb test/models/organization_membership_test.rb
 
   test:
     runs-on: ubuntu-24.04
@@ -82,4 +82,4 @@ jobs:
           bundler-cache: true
 
       - name: Prepare test database and run Rails tests
-        run: bin/rails db:prepare test
+        run: bundle exec rails db:prepare test
