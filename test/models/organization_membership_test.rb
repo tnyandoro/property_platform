@@ -121,4 +121,46 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
 
     assert user.authorized_for_property?(property, "invite_tenants")
   end
+
+  test "allows a verified property owner without an active organization membership" do
+    organization = Organization.create!(name: "Owner access organization")
+    owner = organization.users.create!(
+      email: "owner-access@example.com",
+      first_name: "Owen",
+      last_name: "Owner",
+      password: "password123"
+    )
+    verifier = organization.users.create!(
+      email: "owner-verifier@example.com",
+      first_name: "Vera",
+      last_name: "Verifier",
+      password: "password123"
+    )
+    property = organization.properties.create!(name: "Owner access property", property_type: "residential")
+    party = organization.parties.create!(name: "Verified property owner", party_type: "individual")
+
+    PartyAccount.create!(
+      organization: organization,
+      user: owner,
+      party: party,
+      status: "verified",
+      verified_by: verifier,
+      verified_at: Time.current
+    )
+    PropertyOwnership.create!(
+      organization: organization,
+      property: property,
+      party: party,
+      ownership_percentage: 100,
+      start_date: Date.current,
+      verification_status: "verified",
+      verified_by: verifier,
+      verified_at: Time.current
+    )
+    owner.organization_memberships.update_all(status: "suspended")
+
+    assert_not owner.member_of?(organization)
+    assert owner.authorized_for_property?(property, "manage_property")
+  end
+
 end
