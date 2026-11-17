@@ -82,6 +82,49 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "rejects signed access tokens without a revocation id" do
+    organization = Organization.create!(name: "Non-revocable token #{SecureRandom.hex(4)}")
+    user = create_user(organization, "no-token-id")
+    membership = user.membership_for(organization)
+    token = Rails.application.message_verifier(:authentication).generate(
+      {
+        user_id: user.id,
+        organization_id: organization.id,
+        membership_id: membership.id,
+        workspace: "management"
+      },
+      purpose: :access_token,
+      expires_in: 24.hours
+    )
+
+    get "/api/v1/parties", headers: bearer_headers(token)
+
+    assert_response :unauthorized
+  end
+
+  test "rejects expired access tokens" do
+    organization = Organization.create!(name: "Expired token #{SecureRandom.hex(4)}")
+    user = create_user(organization, "expired-token")
+    membership = user.membership_for(organization)
+    expired_at = 1.hour.ago
+    token = Rails.application.message_verifier(:authentication).generate(
+      {
+        token_id: SecureRandom.uuid,
+        expires_at: expired_at.to_i,
+        user_id: user.id,
+        organization_id: organization.id,
+        membership_id: membership.id,
+        workspace: "management"
+      },
+      purpose: :access_token,
+      expires_at: expired_at
+    )
+
+    get "/api/v1/parties", headers: bearer_headers(token)
+
+    assert_response :unauthorized
+  end
+
   test "tenant workspace does not require an active management membership" do
     organization = Organization.create!(name: "Tenant login #{SecureRandom.hex(4)}")
     manager = create_user(organization, "tenant-manager", organization_role: "administrator")
