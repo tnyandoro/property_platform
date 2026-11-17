@@ -4,6 +4,7 @@ class User < ApplicationRecord
   belongs_to :legacy_organization, class_name: "Organization", foreign_key: :organization_id, optional: true
 
   has_many :organization_memberships, dependent: :restrict_with_error
+  has_many :access_token_revocations, dependent: :delete_all
   has_many :member_organizations, through: :organization_memberships, source: :organization
   has_many :property_assignments
   has_many :properties, through: :property_assignments
