@@ -71,6 +71,7 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/property_platform_test
+      SEED_USER_PASSWORD: estate360-ci-seed-password
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
