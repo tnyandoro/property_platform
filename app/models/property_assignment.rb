@@ -23,7 +23,7 @@ class PropertyAssignment < ApplicationRecord
 
   def capability_grants_match_organization
     return if Array(capabilities).empty? || user.blank? || property.blank?
-    return if user.organization_id == organization_id && property.organization_id == organization_id
+    return if user.member_of?(organization_id) && property.organization_id == organization_id
 
     errors.add(:capabilities, "can only be granted to a user assigned within the same organization")
   end
