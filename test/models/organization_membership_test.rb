@@ -100,7 +100,7 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
       user: user,
       assignment_type: "manager",
       starts_at: Time.current,
-      capabilities: ["invite_tenants"]
+      capabilities: [ "invite_tenants" ]
     )
 
     assert user.authorized_for_property?(property, "invite_tenants")
