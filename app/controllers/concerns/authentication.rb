@@ -182,7 +182,7 @@ module Authentication
       return
     end
 
-    organization_ids = eligible_owner_ownerships(user).distinct.pluck(:organization_id)
+    organization_ids = eligible_owner_ownerships(user).distinct.pluck("property_ownerships.organization_id")
     return unless organization_ids.one?
 
     Organization.find_by(id: organization_ids.first)
