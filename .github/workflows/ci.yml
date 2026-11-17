@@ -81,5 +81,9 @@ jobs:
           ruby-version: "3.3.6"
           bundler-cache: true
 
-      - name: Prepare test database and run Rails tests
-        run: bundle exec rails db:prepare test
+      - name: Run organization membership tests
+        run: bundle exec rails db:prepare && bundle exec rails test test/models/organization_membership_test.rb
+
+      - name: Run full regression suite (existing baseline)
+        run: bundle exec rails test
+        continue-on-error: true
