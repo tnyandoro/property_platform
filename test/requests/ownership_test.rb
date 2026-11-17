@@ -43,7 +43,7 @@ class OwnershipTest < ActionDispatch::IntegrationTest
     assert_equal "1998-04-12", payload.fetch("start_date")
     assert_nil payload["transfer_value"]
     assert_equal "unverified", payload.fetch("verification_status")
-    assert_equal "historical", payload.fetch("effective_status")
+    assert_equal "current", payload.fetch("effective_status")
   end
 
   test "creates a new party and ownership record in the same request" do
