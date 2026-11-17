@@ -86,3 +86,10 @@ jobs:
 
       - name: Run full Rails regression suite
         run: bundle exec rails test
+
+      - name: Verify development seeds are repeatable
+        env:
+          SEED_USER_PASSWORD: estate360-ci-seed-password
+        run: |
+          bundle exec rails db:seed
+          bundle exec rails db:seed
