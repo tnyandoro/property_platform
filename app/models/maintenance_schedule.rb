@@ -54,7 +54,7 @@ class MaintenanceSchedule < ApplicationRecord
       return date.advance(days: interval_value) if interval_unit == "day" && interval_value.present?
       return date.advance(weeks: interval_value) if interval_unit == "week" && interval_value.present?
       return advance_months(date, interval_value) if interval_unit == "month" && interval_value.present?
-      return advance_months(date, interval_months) if interval_months.present?
+      advance_months(date, interval_months) if interval_months.present?
     end
   end
 
@@ -62,7 +62,7 @@ class MaintenanceSchedule < ApplicationRecord
 
   def advance_months(date, months)
     target_month = date.beginning_of_month.advance(months: months)
-    target_month.change(day: [starts_on.day, target_month.end_of_month.day].min)
+    target_month.change(day: [ starts_on.day, target_month.end_of_month.day ].min)
   end
 
   def associations_match_property_and_organization
@@ -76,7 +76,7 @@ class MaintenanceSchedule < ApplicationRecord
         (unit_id.present? && room.unit_id != unit_id))
       errors.add(:room, "must belong to this property and unit")
     end
-    [assigned_to, created_by].compact.each do |user|
+    [ assigned_to, created_by ].compact.each do |user|
       next if user.member_of?(organization_id) || user.platform_administrator?
 
       errors.add(:base, "users must be active members of the organization")
