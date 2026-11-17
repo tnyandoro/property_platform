@@ -316,7 +316,7 @@ move_in_inspection = organization.inspections.find_or_initialize_by(
 	scheduled_on: Date.new(2026, 10, 15)
 )
 move_in_inspection.assign_attributes(
-	inspector: user,
+	inspector: staff_users.fetch(:inspector),
 	status: "draft",
 	notes: "Move-in inspection covering every room and fixture."
 )
