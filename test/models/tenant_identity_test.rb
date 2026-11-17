@@ -120,8 +120,7 @@ class TenantIdentityTest < ActiveSupport::TestCase
   end
 
   test "a tenant identity may belong to another organization without a staff membership" do
-    tenant_home = Organization.create!(name: "External tenant home #{SecureRandom.hex(4)}")
-    external_user = tenant_home.users.create!(
+    external_user = User.create!(
       email: "external-tenant-#{SecureRandom.hex(4)}@example.com",
       first_name: "External",
       last_name: "Tenant",
@@ -150,8 +149,7 @@ class TenantIdentityTest < ActiveSupport::TestCase
   end
 
   test "external tenant can request an extension without organization membership" do
-    tenant_home = Organization.create!(name: "Extension tenant home #{SecureRandom.hex(4)}")
-    external_user = tenant_home.users.create!(
+    external_user = User.create!(
       email: "extension-tenant-#{SecureRandom.hex(4)}@example.com",
       first_name: "External",
       last_name: "Tenant",
