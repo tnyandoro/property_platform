@@ -47,7 +47,7 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
 
     assert_equal [ first.id, second.id ].sort, user.organization_memberships.active.pluck(:organization_id).sort
     assert membership.administrator?
-    assert_equal first, user.reload.organization # Legacy default remains during the transition.
+    assert_equal first, user.reload.legacy_organization # Legacy link remains only for existing organization-created accounts.
   end
 
   test "prevents duplicate memberships for the same user and organization" do
@@ -162,4 +162,18 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert_not owner.member_of?(organization)
     assert owner.authorized_for_property?(property, "propose_lease_renewals")
   end
+
+  test "allows a global user without a legacy organization or staff membership" do
+    user = User.create!(
+      email: "global-identity@example.com",
+      first_name: "Global",
+      last_name: "Identity",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+
+    assert_nil user.legacy_organization
+    assert_empty user.organization_memberships
+  end
+
 end
