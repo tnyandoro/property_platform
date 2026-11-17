@@ -37,12 +37,16 @@ module Api
           return render json: { error: "An account already exists for this email. Contact the organisation to link the existing account." }, status: :conflict
         end
 
-        if TenantInvitation.pending.where(
+        existing_invitation = TenantInvitation.pending.find_by(
           organization_id: current_organization.id,
           lease_id: lease.id,
           target_email: email
-        ).exists?
-          return render json: { error: "A pending invitation already exists for this lease and email" }, status: :conflict
+        )
+        if existing_invitation
+          expire_if_due!(existing_invitation)
+          if existing_invitation.status == "pending"
+            return render json: { error: "A pending invitation already exists for this lease and email" }, status: :conflict
+          end
         end
 
         return email_not_configured unless email_delivery_configured?
@@ -134,12 +138,14 @@ module Api
       end
 
       def expire_if_due!(invitation)
-        return unless invitation.status == "pending" && invitation.expires_at <= Time.current
-
-        invitation.update!(
-          status: "expired",
-          expired_at: Time.current
-        )
+        invitation.with_lock do
+          if invitation.status == "pending" && invitation.expires_at <= Time.current
+            invitation.update!(
+              status: "expired",
+              expired_at: Time.current
+            )
+          end
+        end
       end
 
       def invitation_payload(invitation)
