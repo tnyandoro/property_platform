@@ -12,6 +12,7 @@ class User < ApplicationRecord
   has_many :platform_administrator_grants, dependent: :restrict_with_error
 
   ORGANIZATION_ROLES = %w[member administrator].freeze
+  OWNER_CAPABILITIES = %w[propose_lease_renewals].freeze
 
   attr_accessor :skip_initial_organization_membership
 
@@ -55,7 +56,7 @@ class User < ApplicationRecord
           verification_status: "verified"
         )
         .exists?
-      return true
+      return OWNER_CAPABILITIES.include?(capability)
     end
 
     return false unless membership
