@@ -40,9 +40,6 @@ class LeaseRenewalProposal < ApplicationRecord
     if !%w[active expired].include?(lease.status)
       errors.add(:lease, "must be active or expired to propose a renewal")
     end
-    if created_by && !created_by.member_of?(organization_id)
-      errors.add(:created_by, "must be an active member of the organization")
-    end
   end
 
   def creator_is_authorized
