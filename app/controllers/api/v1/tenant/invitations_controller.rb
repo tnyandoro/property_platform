@@ -3,6 +3,7 @@ module Api
     module Tenant
       class InvitationsController < ApplicationController
         skip_before_action :authenticate_user!
+        skip_before_action :require_management_workspace!
 
         def show
           invitation = invitation_for_token
