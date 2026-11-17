@@ -11,6 +11,9 @@ Rails.application.routes.draw do
       delete "logout", to: "sessions#destroy"
       resources :organization_memberships, only: %i[index create update destroy]
       get "tenant/dashboard", to: "tenant/dashboard#show"
+      get "tenant/maintenance_requests", to: "tenant/maintenance_requests#index"
+      post "tenant/maintenance_requests", to: "tenant/maintenance_requests#create"
+      get "tenant/maintenance_requests/:maintenance_request_id", to: "tenant/maintenance_requests#show"
       get "owner/dashboard", to: "owner/dashboard#show"
       get "parties", to: "parties#index"
       resources :properties
