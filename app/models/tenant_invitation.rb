@@ -18,7 +18,7 @@ class TenantInvitation < ApplicationRecord
   validates :target_email, :token_digest, :expires_at, presence: true
   validates :token_digest, format: { with: /\A[0-9a-f]{64}\z/ }
   validates :target_email,
-    uniqueness: { scope: [:organization_id, :lease_id], conditions: -> { where(status: "pending") } },
+    uniqueness: { scope: [ :organization_id, :lease_id ], conditions: -> { where(status: "pending") } },
     if: -> { status == "pending" }
   validates :status, inclusion: { in: STATUSES }
   validate :scope_matches_lease
