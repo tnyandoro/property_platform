@@ -101,14 +101,14 @@ class TenantInvitationsTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "non-management users cannot create tenant invitations" do
+  test "members without property invitation authority cannot create tenant invitations" do
     tenant_user = create_user(@organization, "tenant")
     post "/api/v1/tenant_invitations",
       params: { tenant_invitation: { lease_id: @lease.id, email: "new.tenant@example.com" } },
       headers: authenticate_as(tenant_user, workspace: "management"),
       as: :json
 
-    assert_response :unauthorized
+    assert_response :forbidden
   end
 
   private
