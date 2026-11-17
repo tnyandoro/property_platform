@@ -1,7 +1,7 @@
 class User < ApplicationRecord
-  include TenantScoped
-
   has_secure_password
+
+  belongs_to :legacy_organization, class_name: "Organization", foreign_key: :organization_id, optional: true
 
   has_many :organization_memberships, dependent: :restrict_with_error
   has_many :member_organizations, through: :organization_memberships, source: :organization
@@ -71,10 +71,10 @@ class User < ApplicationRecord
   private
 
   def create_initial_organization_membership
-    return if skip_initial_organization_membership
+    return if skip_initial_organization_membership || legacy_organization.blank?
 
     organization_memberships.create!(
-      organization: organization,
+      organization: legacy_organization,
       role: organization_role.presence || "member",
       status: "active"
     )
