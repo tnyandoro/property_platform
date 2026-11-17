@@ -6,7 +6,7 @@ module Api
 
       def create
         @workspace = params[:workspace].presence || "management"
-        return invalid_login unless %w[management tenant].include?(@workspace)
+        return invalid_login unless %w[management tenant owner].include?(@workspace)
 
         user = matching_user
         return invalid_login unless user&.authenticate(params[:password].to_s)
@@ -58,7 +58,8 @@ module Api
           return
         end
 
-        if @workspace == "management"
+        case @workspace
+        when "management"
           if organization_id.present?
             users = users.joins(:organization_memberships).where(
               organization_memberships: {
@@ -75,7 +76,7 @@ module Api
           @membership = resolve_management_membership(user, organization_id.presence, nil)
           @organization = @membership&.organization
           user if @membership
-        elsif @workspace == "tenant"
+        when "tenant"
           if organization_id.present?
             users = users.joins(party_accounts: :tenant_profile).where(
               party_accounts: {
@@ -92,6 +93,15 @@ module Api
           user = matches.first
           @organization = resolve_tenant_organization(user, organization_id.presence)
           user if @organization && tenant_account?(user, @organization)
+        when "owner"
+          users = users.joins(:party_accounts).where(party_accounts: { status: "verified" })
+          users = users.where(party_accounts: { organization_id: organization_id }) if organization_id.present?
+          matches = users.distinct.limit(2).to_a
+          return unless matches.one?
+
+          user = matches.first
+          @organization = resolve_owner_organization(user, organization_id.presence)
+          user if @organization && owner_account?(user, @organization)
         end
       end
 
