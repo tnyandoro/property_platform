@@ -32,7 +32,7 @@ Verify the live code and schema before implementation. The current foundations i
 - `TenantInvitation` exists with a token digest, expiry and lifecycle validations. Invitation creation/delivery and public activation endpoints are not yet exposed.
 - `LeaseRenewalProposal`, `LeaseExtensionRequest` and `TenantNotification` models exist. Tenant response/extension endpoints and notification delivery/read-management endpoints are still outstanding.
 - `Document` and `PropertyPhoto` support explicit `internal` / `tenant_visible` states. The current tenant dashboard does not yet expose property photographs or implement the full document/photograph delivery surface.
-- A read-only `GET /api/v1/tenant/dashboard` endpoint exists. Tenant maintenance submission and other tenant write actions are not yet exposed as tenant-workspace routes.
+- A read-only `GET /api/v1/tenant/dashboard` endpoint exists. Tenant maintenance requests are now exposed through tenant-only `GET/POST /api/v1/tenant/maintenance_requests` and `GET /api/v1/tenant/maintenance_requests/:maintenance_request_id` routes. The initial submission API is text-only; tenant document/photo uploads, lease renewals, extension requests and notification management remain outstanding.
 - The management portfolio contains management-only property, ownership, lease and maintenance data. It is not a tenant response contract.
 
 `TenantScoped` validates an organisation association but is not automatic query scoping. Every tenant read and write must explicitly scope the current account, Party, eligible Lease and associated property/premises.
