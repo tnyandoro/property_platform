@@ -62,11 +62,12 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
 
   test "tenant workspace does not require an active management membership" do
     organization = Organization.create!(name: "Tenant login #{SecureRandom.hex(4)}")
-    tenant_home = Organization.create!(name: "Tenant home #{SecureRandom.hex(4)}")
     manager = create_user(organization, "tenant-manager", organization_role: "administrator")
-    tenant = create_user(
-      tenant_home,
-      "tenant-user",
+    tenant = User.create!(
+      email: "tenant-user-#{SecureRandom.hex(4)}@example.com",
+      first_name: "Test",
+      last_name: "Tenant",
+      password: "password123",
       skip_initial_organization_membership: true
     )
     tenant.update!(email_verified_at: Time.current)
