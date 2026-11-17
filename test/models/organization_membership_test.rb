@@ -175,5 +175,4 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert_nil user.legacy_organization
     assert_empty user.organization_memberships
   end
-
 end
