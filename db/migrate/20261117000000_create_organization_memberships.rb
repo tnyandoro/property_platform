@@ -18,6 +18,10 @@ class CreateOrganizationMemberships < ActiveRecord::Migration[8.1]
                          "status IN ('active', 'suspended', 'revoked')",
                          name: "organization_memberships_status_check"
 
+    add_check_constraint :organization_memberships,
+                         "role IN ('member', 'administrator')",
+                         name: "organization_memberships_role_check"
+
     execute <<~SQL
       INSERT INTO organization_memberships
         (id, organization_id, user_id, role, status, created_at, updated_at)
