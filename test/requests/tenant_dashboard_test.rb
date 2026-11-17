@@ -221,6 +221,8 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
   def authenticate_as(user, workspace: "management")
     membership = user.membership_for(@organization)
     payload = {
+      token_id: SecureRandom.uuid,
+      expires_at: 24.hours.from_now.to_i,
       user_id: user.id,
       organization_id: @organization.id,
       workspace: workspace
