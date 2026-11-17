@@ -40,7 +40,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "Home-only party"
 
     delete "/api/v1/logout", headers: bearer_headers(token)
-    assert_response :no_content
+    assert_response :no_content, response.body
 
     get "/api/v1/parties", headers: bearer_headers(token)
     assert_response :unauthorized
