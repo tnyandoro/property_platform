@@ -4,6 +4,9 @@ module PropertyAuthorization
   private
 
   def accessible_properties
+    return current_organization.properties.none unless Current.workspace == "management"
+    return current_organization.properties if Current.membership&.administrator?
+
     current_organization.properties
       .joins(:property_assignments)
       .where(
