@@ -32,8 +32,10 @@ module Api
             )
             .includes(:property)
             .where(
-              organization_id: current_organization.id,
-              verification_status: "verified",
+              property_ownerships: {
+                organization_id: current_organization.id,
+                verification_status: "verified"
+              },
               party_accounts: {
                 organization_id: current_organization.id,
                 user_id: current_user.id,
