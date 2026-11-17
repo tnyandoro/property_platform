@@ -10,7 +10,7 @@ Rails.application.routes.draw do
       post "login", to: "sessions#create"
       delete "logout", to: "sessions#destroy"
       resources :organization_memberships, only: %i[index create update destroy]
-      resources :tenant_invitations, only: %i[index create destroy]
+      resources :tenant_invitations, only: %i[create]
       get "tenant/invitations/:token", to: "tenant/invitations#show", as: :tenant_invitation_preview
       post "tenant/invitations/:token/accept", to: "tenant/invitations#accept", as: :accept_tenant_invitation
       get "tenant/dashboard", to: "tenant/dashboard#show"
