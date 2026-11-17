@@ -83,7 +83,7 @@ jobs:
           bundler-cache: true
 
       - name: Run organization membership tests
-        run: bundle exec rails db:prepare && bundle exec rails test test/models/organization_membership_test.rb
+        run: bundle exec rails db:create db:migrate && bundle exec rails test test/models/organization_membership_test.rb
 
       - name: Run full Rails regression suite
         run: bundle exec rails test
