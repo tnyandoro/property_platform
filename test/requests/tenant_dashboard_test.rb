@@ -218,9 +218,16 @@ class TenantDashboardTest < ActionDispatch::IntegrationTest
     )
   end
 
-  def authenticate_as(user)
+  def authenticate_as(user, workspace: "management")
+    membership = user.membership_for(@organization)
+    payload = {
+      user_id: user.id,
+      organization_id: @organization.id,
+      workspace: workspace
+    }
+    payload[:membership_id] = membership.id if workspace == "management" && membership
     token = Rails.application.message_verifier(:authentication).generate(
-      { user_id: user.id },
+      payload,
       purpose: :access_token,
       expires_in: 24.hours
     )
