@@ -160,6 +160,6 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     owner.organization_memberships.update_all(status: "suspended")
 
     assert_not owner.member_of?(organization)
-    assert owner.authorized_for_property?(property, "manage_property")
+    assert owner.authorized_for_property?(property, "propose_lease_renewals")
   end
 end
