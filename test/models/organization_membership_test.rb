@@ -162,5 +162,4 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert_not owner.member_of?(organization)
     assert owner.authorized_for_property?(property, "manage_property")
   end
-
 end
