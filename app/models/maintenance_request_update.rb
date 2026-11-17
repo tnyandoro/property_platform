@@ -25,7 +25,9 @@ class MaintenanceRequestUpdate < ApplicationRecord
       errors.add(:maintenance_request, "must belong to the same organization")
     end
     [author, published_by].compact.each do |user|
-      errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
+      next if user.member_of?(organization_id) || user.platform_administrator?
+
+      errors.add(:base, "users must be active members of the organization")
     end
   end
 
