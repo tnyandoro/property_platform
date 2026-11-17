@@ -149,6 +149,60 @@ class TenantIdentityTest < ActiveSupport::TestCase
     assert_equal external_user, profile.user
   end
 
+  test "external tenant can request an extension without organization membership" do
+    tenant_home = Organization.create!(name: "Extension tenant home #{SecureRandom.hex(4)}")
+    external_user = tenant_home.users.create!(
+      email: "extension-tenant-#{SecureRandom.hex(4)}@example.com",
+      first_name: "External",
+      last_name: "Tenant",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+    account = PartyAccount.create!(
+      organization: @organization,
+      user: external_user,
+      party: @tenant_party,
+      status: "verified",
+      verified_by: @admin,
+      verified_at: Time.current
+    )
+    profile = TenantProfile.create!(
+      organization: @organization,
+      party_account: account,
+      tenant_reference: "EXT-EXT"
+    )
+    building = @property.buildings.create!(organization: @organization, name: "Extension building")
+    unit = building.units.create!(
+      organization: @organization,
+      property: @property,
+      unit_number: "EXT-1",
+      unit_type: "residential"
+    )
+    lease = Lease.create!(
+      organization: @organization,
+      property: @property,
+      unit: unit,
+      tenant: @tenant_party,
+      status: "active",
+      lease_type: "fixed_term",
+      start_date: Date.current,
+      end_date: 1.year.from_now.to_date,
+      monthly_rent: 1500,
+      rent_currency: "ZAR"
+    )
+    request = LeaseExtensionRequest.new(
+      organization: @organization,
+      lease: lease,
+      tenant_profile: profile,
+      requested_by: external_user,
+      requested_end_date: 2.years.from_now.to_date,
+      status: "pending"
+    )
+
+    assert_empty external_user.organization_memberships
+    assert request.valid?, request.errors.full_messages.inspect
+  end
+
   private
   def create_user(organization, prefix, organization_role: "member")
     organization.users.create!(
