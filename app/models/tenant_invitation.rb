@@ -66,7 +66,7 @@ class TenantInvitation < ApplicationRecord
 
   def acceptance_metadata_is_consistent
     if status == "accepted"
-      errors.add(:accepted_user, "must match the invitation email and organization") unless accepted_user &&
+      errors.add(:accepted_user, "must match the invitation email and have a verified email address") unless accepted_user &&
         accepted_user.email == target_email &&
         accepted_user.email_verified_at.present?
       unless accepted_user&.party_accounts&.verified&.joins(:tenant_profile)&.exists?(
