@@ -81,7 +81,7 @@ class PropertyOwnership < ApplicationRecord
       .where.not(id: id)
     existing = existing.where("end_date IS NULL OR end_date > ?", start_date)
     existing = existing.where("start_date < ?", end_date) if end_date.present?
-    boundaries = [start_date] + existing.pluck(:start_date).select do |date|
+    boundaries = [ start_date ] + existing.pluck(:start_date).select do |date|
       date >= start_date && (end_date.nil? || date < end_date)
     end
 
