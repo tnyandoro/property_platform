@@ -49,6 +49,10 @@ module Api
             }, status: :unprocessable_entity
           end
 
+          if attributes[:lease_id].blank?
+            return render json: { error: "lease_id is required." }, status: :unprocessable_entity
+          end
+
           if attributes[:description].blank?
             return render json: { error: "description is required." }, status: :unprocessable_entity
           end
@@ -66,7 +70,7 @@ module Api
             unit: lease.unit,
             lease: lease,
             reported_by: current_user,
-            title: attributes[:description].lines.first.to_s.strip.truncate(120),
+            title: attributes[:description].squish.truncate(120),
             description: attributes[:description],
             category: attributes[:category].presence,
             priority: attributes[:priority].presence || "medium",
