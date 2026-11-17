@@ -119,8 +119,37 @@ class TenantIdentityTest < ActiveSupport::TestCase
     assert_not @tenant_user.authorized_for_property?(@property, "invite_tenants")
   end
 
-  private
+  test "a tenant identity may belong to another organization without a staff membership" do
+    tenant_home = Organization.create!(name: "External tenant home #{SecureRandom.hex(4)}")
+    external_user = tenant_home.users.create!(
+      email: "external-tenant-#{SecureRandom.hex(4)}@example.com",
+      first_name: "External",
+      last_name: "Tenant",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+    external_user.update!(email_verified_at: Time.current)
 
+    account = PartyAccount.create!(
+      organization: @organization,
+      user: external_user,
+      party: @tenant_party,
+      status: "verified",
+      verified_by: @admin,
+      verified_at: Time.current
+    )
+    profile = TenantProfile.create!(
+      organization: @organization,
+      party_account: account,
+      tenant_reference: "EXT-001"
+    )
+
+    assert_empty external_user.organization_memberships
+    assert_equal @organization, profile.organization
+    assert_equal external_user, profile.user
+  end
+
+  private
   def create_user(organization, prefix, organization_role: "member")
     organization.users.create!(
       email: "#{prefix}-#{SecureRandom.hex(4)}@example.com",
