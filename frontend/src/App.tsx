@@ -126,7 +126,7 @@ function App() {
   function signOut() { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); setUser(null); setProperties([]); setSelected(null); setPortfolio(null) }
   const visibleProperties = properties.filter((property) => `${property.name} ${property.address.city || ''} ${property.property_type}`.toLowerCase().includes(search.toLowerCase()))
 
-  if (!user && window.location.pathname === '/accept-tenant-invitation') return <TenantInvitationActivation />
+  if (window.location.pathname === '/accept-tenant-invitation') return <TenantInvitationActivation />
   if (!user) return <Login onLogin={(nextUser, token) => { localStorage.setItem('property_platform_token', token); localStorage.setItem('property_platform_user', JSON.stringify(nextUser)); setUser(nextUser) }} />
   if (user.workspace === 'tenant') return <TenantDashboard onSignOut={signOut} />
 
@@ -232,7 +232,7 @@ function TenantInvitationActivation() {
         <p className="eyebrow">Account activated</p>
         <h2>You’re all set.</h2>
         <p className="login-help">Your tenant account has been created. Sign in with your invited email address and the password you just chose.</p>
-        <button className="primary-button full" type="button" onClick={() => { window.location.href = '/' }}>Go to sign in <ChevronRight size={17} /></button>
+        <button className="primary-button full" type="button" onClick={() => { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); window.location.href = '/' }}>Go to sign in <ChevronRight size={17} /></button>
       </> : <>
         <p className="eyebrow">Accept your invitation</p>
         <h2>Create your tenant account</h2>
