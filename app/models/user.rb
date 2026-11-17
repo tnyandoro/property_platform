@@ -13,6 +13,8 @@ class User < ApplicationRecord
 
   ORGANIZATION_ROLES = %w[member administrator].freeze
 
+  attr_accessor :skip_initial_organization_membership
+
   validates :email, presence: true, uniqueness: { scope: :organization_id }
   validates :first_name, :last_name, presence: true
   validates :organization_role, inclusion: { in: ORGANIZATION_ROLES }, if: -> { has_attribute?(:organization_role) }
@@ -68,6 +70,8 @@ class User < ApplicationRecord
   private
 
   def create_initial_organization_membership
+    return if skip_initial_organization_membership
+
     organization_memberships.create!(
       organization: organization,
       role: organization_role.presence || "member",
