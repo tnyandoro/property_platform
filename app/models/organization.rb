@@ -1,6 +1,14 @@
 class Organization < ApplicationRecord
   has_many :users
   has_many :parties
+  has_many :party_accounts, dependent: :restrict_with_error
+  has_many :tenant_profiles, dependent: :restrict_with_error
+  has_many :tenant_invitations, dependent: :restrict_with_error
+  has_many :lease_renewal_proposals, dependent: :restrict_with_error
+  has_many :lease_extension_requests, dependent: :restrict_with_error
+  has_many :property_photos, dependent: :restrict_with_error
+  has_many :maintenance_request_updates, dependent: :restrict_with_error
+  has_many :tenant_notifications, dependent: :restrict_with_error
   has_many :properties
   has_many :property_ownerships
   has_many :buildings

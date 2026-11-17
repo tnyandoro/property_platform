@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Building2, CalendarPlus, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
+import { Building2, CalendarPlus, ChevronDown, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench, X } from 'lucide-react'
 import { api, responseError } from './api'
 import { MaintenanceWorkspace } from './MaintenanceWorkspace'
+import { TenantDashboard } from './TenantDashboard'
 
-type User = { id: string; email: string; first_name: string; last_name: string; organization_id: string }
+type Workspace = 'management' | 'tenant'
+type User = { id: string; email: string; first_name: string; last_name: string; organization_id: string; workspace?: Workspace }
 type Address = { line_1?: string; line_2?: string; suburb?: string; city?: string; province?: string; postal_code?: string; country?: string }
 type Property = {
   id: string
@@ -104,28 +106,33 @@ function App() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showMaintenancePropertyPicker, setShowMaintenancePropertyPicker] = useState(false)
+  const [propertyTab, setPropertyTab] = useState('overview')
+  const [operationsExpanded, setOperationsExpanded] = useState(true)
 
-  useEffect(() => { if (user) loadProperties() }, [user])
+  useEffect(() => { if (user && user.workspace !== 'tenant') loadProperties() }, [user])
 
   async function loadProperties() {
     setLoading(true); setError('')
     try { setProperties(await api<Property[]>('/properties')) } catch (err) { setError((err as Error).message) } finally { setLoading(false) }
   }
 
-  async function openProperty(property: Property) {
+  async function openProperty(property: Property, tab = 'overview') {
+    setPropertyTab(tab)
     setSelected(property); setPortfolio(null); setPortfolioError(''); setPortfolioLoading(true)
     try { setPortfolio(await api<Portfolio>(`/properties/${property.id}/portfolio`)) } catch (err) { setPortfolioError((err as Error).message) } finally { setPortfolioLoading(false) }
   }
 
-  function signOut() { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); setUser(null); setProperties([]) }
+  function signOut() { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); setUser(null); setProperties([]); setSelected(null); setPortfolio(null) }
   const visibleProperties = properties.filter((property) => `${property.name} ${property.address.city || ''} ${property.property_type}`.toLowerCase().includes(search.toLowerCase()))
 
   if (!user) return <Login onLogin={(nextUser, token) => { localStorage.setItem('property_platform_token', token); localStorage.setItem('property_platform_user', JSON.stringify(nextUser)); setUser(nextUser) }} />
+  if (user.workspace === 'tenant') return <TenantDashboard onSignOut={signOut} />
 
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / property</span></div>
-      <nav><a className="active"><Building2 size={17} /> Portfolio <span className="nav-count">{properties.length}</span></a><a><ShieldCheck size={17} /> Inspections <span className="soon">soon</span></a><a><SlidersHorizontal size={17} /> Operations</a></nav>
+      <nav><a className="active"><Building2 size={17} /> Portfolio <span className="nav-count">{properties.length}</span></a><div className="sidebar-group"><button className="sidebar-group-title" type="button" aria-label="Operations" aria-expanded={operationsExpanded} aria-controls="operations-submenu" onClick={() => setOperationsExpanded((expanded) => !expanded)}><SlidersHorizontal size={17} /><span>Operations</span><ChevronDown className="sidebar-group-chevron" size={14} /></button><div id="operations-submenu" className="sidebar-submenu" hidden={!operationsExpanded}><button className="sidebar-subitem" type="button" aria-label="Maintenance" onClick={() => setShowMaintenancePropertyPicker(true)}><Wrench size={16} /><span>Maintenance</span></button></div></div></nav>
       <div className="sidebar-footer"><div className="mini-user"><CircleUserRound size={30} /><div><strong>{user.first_name} {user.last_name}</strong><span>Portfolio manager</span></div></div><button className="logout" onClick={signOut}><LogOut size={15} /> Sign out</button></div>
     </aside>
     <main className="main-content">
@@ -136,7 +143,8 @@ function App() {
         {loading ? <div className="empty-state"><div className="spinner" /> Loading portfolio</div> : visibleProperties.length ? <div className="property-grid">{visibleProperties.map((property) => <button className={`property-card ${selected?.id === property.id ? 'selected' : ''}`} key={property.id} onClick={() => openProperty(property)}><div className="card-top">{property.cover_photo_url ? <img src={property.cover_photo_url} alt={property.name} style={{ height: 100, objectFit: 'cover', borderRadius: '6px 6px 0 0', display: 'block', margin: '-12px -12px 8px -12px', width: 'calc(100% + 24px)' }} /> : <span className="property-icon"><Building2 size={20} /></span>}<span className={`condition ${property.condition || 'good'}`}>{property.condition || 'active'}</span></div><div className="card-copy"><h3>{property.name}</h3><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><div className="card-meta"><span>{property.property_type}</span><span>{property.cached_total_units} units <ChevronRight size={14} /></span></div></button>)}</div> : <div className="empty-state"><Building2 size={28} /><h3>No properties yet</h3><p>Create your first managed property to start building the portfolio.</p><button className="primary-button" onClick={() => setShowCreate(true)}><Plus size={17} /> Add property</button></div>}
       </section>
     </main>
-    {selected && <PropertyDetailWorkspace property={selected} portfolio={portfolio} loading={portfolioLoading} error={portfolioError} onInspection={(inspectionId) => setInspectionId(selected.id, inspectionId)} onSchedule={() => setShowSchedule(true)} onPhotoUploaded={(url) => { setSelected((p) => p ? { ...p, cover_photo_url: url } : p); setProperties((ps) => ps.map((p) => p.id === selected.id ? { ...p, cover_photo_url: url } : p)) }} onClose={() => { setSelected(null); setPortfolio(null) }} />}
+    {selected && <PropertyDetailWorkspace key={selected.id} property={selected} initialTab={propertyTab} portfolio={portfolio} loading={portfolioLoading} error={portfolioError} onInspection={(inspectionId) => setInspectionId(selected.id, inspectionId)} onSchedule={() => setShowSchedule(true)} onPhotoUploaded={(url) => { setSelected((p) => p ? { ...p, cover_photo_url: url } : p); setProperties((ps) => ps.map((p) => p.id === selected.id ? { ...p, cover_photo_url: url } : p)) }} onClose={() => { setSelected(null); setPortfolio(null) }} />}
+    {showMaintenancePropertyPicker && <div className="modal-backdrop" onClick={() => setShowMaintenancePropertyPicker(false)}><section className="modal maintenance-property-picker" role="dialog" aria-modal="true" aria-labelledby="maintenance-property-picker-title" onClick={(event) => event.stopPropagation()}><div className="modal-header"><div><p className="eyebrow">Operations</p><h2 id="maintenance-property-picker-title">Choose a property</h2><p className="picker-help">Open maintenance for one of your managed properties.</p></div><button className="icon-button" type="button" aria-label="Close property picker" onClick={() => setShowMaintenancePropertyPicker(false)}><X size={18} /></button></div><div className="maintenance-property-list">{properties.length ? properties.map((property) => <button className="maintenance-property-option" type="button" key={property.id} onClick={() => { setShowMaintenancePropertyPicker(false); openProperty(property, 'maintenance') }}><span className="property-icon"><Building2 size={18} /></span><span className="maintenance-property-copy"><strong>{property.name}</strong><small>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</small></span><ChevronRight size={16} /></button>) : <div className="picker-empty">No properties are available in your portfolio.</div>}</div></section></div>}
     {inspection && selected && <InspectionReview propertyId={selected.id} inspection={inspection} onStart={() => { setInspectionForm(inspection); setInspection(null) }} onClose={() => setInspection(null)} />}
     {inspectionForm && selected && <InspectionForm propertyId={selected.id} inspection={inspectionForm} onClose={() => setInspectionForm(null)} onSaved={() => { setInspectionForm(null); setInspection(null); openProperty(selected) }} />}
     {showSchedule && selected && <ScheduleInspection propertyId={selected.id} onClose={() => setShowSchedule(false)} onCreated={() => { setShowSchedule(false); openProperty(selected) }} />}
@@ -149,13 +157,74 @@ function App() {
 }
 
 function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
-  const [email, setEmail] = useState('admin@acme.example'); const [password, setPassword] = useState('password123'); const [error, setError] = useState(''); const [loading, setLoading] = useState(false)
-  async function submit(event: React.FormEvent) { event.preventDefault(); setLoading(true); setError(''); try { const result = await api<{ token: string; user: User }>('/login', { method: 'POST', body: JSON.stringify({ email, password }) }); onLogin(result.user, result.token) } catch (err) { setError((err as Error).message) } finally { setLoading(false) } }
-  return <div className="login-page"><div className="login-art"><div className="brand light"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / property</span></div><div className="art-copy"><p className="eyebrow">Operations, made visible</p><h1>Know every<br /><em>place</em> you manage.</h1><p>A focused command center for property teams, from the first handover to the final inspection.</p></div><div className="art-footer">01 <span /> Property registry</div></div><form className="login-card" onSubmit={submit}><div className="mobile-brand brand"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / property</span></div><p className="eyebrow">Welcome back</p><h2>Sign in to your workspace</h2><p className="login-help">Use your organization account to open the portfolio.</p><label>Email address<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required /></label><label>Password<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required /></label>{error && <div className="form-error">{error}</div>}<button className="primary-button full" disabled={loading}>{loading ? 'Signing in...' : 'Enter workspace'} <ChevronRight size={17} /></button><p className="demo-hint">Demo access is prefilled for local development.</p></form></div>
+  const [workspace, setWorkspace] = useState<Workspace>('management')
+  const [email, setEmail] = useState('admin@acme.example')
+  const [password, setPassword] = useState('password123')
+  const [organizationId, setOrganizationId] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  function chooseWorkspace(nextWorkspace: Workspace) {
+    setWorkspace(nextWorkspace)
+    setEmail('')
+    setPassword('')
+    setError('')
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const result = await api<{ token: string; user: User }>('/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          organization_id: organizationId.trim() || undefined,
+          workspace,
+        }),
+      })
+      onLogin(result.user, result.token)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return <div className="login-page">
+    <div className="login-art">
+      <div className="brand light"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / property</span></div>
+      <div className="art-copy">
+        <p className="eyebrow">{workspace === 'tenant' ? 'Your tenant workspace' : 'Operations, made visible'}</p>
+        <h1>{workspace === 'tenant' ? <>Your home,<br /><em>in view.</em></> : <>Know every<br /><em>place</em> you manage.</>}</h1>
+        <p>{workspace === 'tenant' ? 'Stay up to date with your home, lease details and maintenance requests.' : 'A focused command center for property teams, from the first handover to the final inspection.'}</p>
+      </div>
+      <div className="art-footer">01 <span /> {workspace === 'tenant' ? 'Tenant workspace' : 'Property registry'}</div>
+    </div>
+    <form className="login-card" onSubmit={submit}>
+      <div className="mobile-brand brand"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / property</span></div>
+      <p className="eyebrow">Welcome back</p>
+      <h2>{workspace === 'tenant' ? 'Sign in as a tenant' : 'Sign in to your workspace'}</h2>
+      <div className="workspace-switch" role="group" aria-label="Choose sign-in workspace">
+        <button type="button" className={workspace === 'management' ? 'active' : ''} aria-pressed={workspace === 'management'} onClick={() => chooseWorkspace('management')}>Property team</button>
+        <button type="button" className={workspace === 'tenant' ? 'active' : ''} aria-pressed={workspace === 'tenant'} onClick={() => chooseWorkspace('tenant')}>Tenant</button>
+      </div>
+      <p className="login-help">{workspace === 'tenant' ? 'Use the tenant account linked to your lease. Enter your organization ID if your email is used by more than one organization.' : 'Use your organization account to open the portfolio.'}</p>
+      <label>Email address<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required /></label>
+      <label>Password<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></label>
+      <label>Organization ID <span className="optional-label">(optional if your email is unique)</span><input value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} autoComplete="off" /></label>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <button className="primary-button full" disabled={loading}>{loading ? 'Signing in...' : workspace === 'tenant' ? 'Open tenant workspace' : 'Enter workspace'} <ChevronRight size={17} /></button>
+      {workspace === 'management' && <p className="demo-hint">Demo access is prefilled for local development.</p>}
+    </form>
+  </div>
 }
 
-function PropertyDetailWorkspace({ property, portfolio, loading, error, onInspection, onSchedule, onPhotoUploaded, onClose }: { property: Property; portfolio: Portfolio | null; loading: boolean; error: string; onInspection: (inspectionId: string) => void; onSchedule: () => void; onPhotoUploaded: (url: string) => void; onClose: () => void }) {
-  const [tab, setTab] = useState('overview')
+function PropertyDetailWorkspace({ property, initialTab, portfolio, loading, error, onInspection, onSchedule, onPhotoUploaded, onClose }: { property: Property; initialTab: string; portfolio: Portfolio | null; loading: boolean; error: string; onInspection: (inspectionId: string) => void; onSchedule: () => void; onPhotoUploaded: (url: string) => void; onClose: () => void }) {
+  const [tab, setTab] = useState(initialTab)
+  useEffect(() => setTab(initialTab), [initialTab, property.id])
   const tabs = [['overview', 'Overview'], ['structure', 'Structure'], ['inventory', 'Inventory'], ['ownership', 'Ownership'], ['access', 'Access'], ['inspections', 'Inspections'], ['leases', 'Leases'], ['maintenance', 'Maintenance']]
   return <div className="drawer-backdrop" onClick={onClose}><aside className="detail-workspace" onClick={(event) => event.stopPropagation()}><div className="detail-header"><div><p className="eyebrow">Property workspace</p><h2>{property.name}</h2><p>{property.address.city || 'Location pending'}{property.address.province ? `, ${property.address.province}` : ''}</p></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="detail-tabs">{tabs.map(([value, label]) => <button className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{label}</button>)}</div>{loading ? <div className="detail-loading"><div className="spinner" /> Loading property workspace</div> : error ? <div className="detail-error"><X size={17} /><p>{error}</p></div> : portfolio && <div className="detail-content">{tab === 'overview' && <OverviewPanel property={property} portfolio={portfolio} onPhotoUploaded={onPhotoUploaded} />}{tab === 'structure' && <StructurePanel portfolio={portfolio} />}{tab === 'inventory' && <InventoryPanel portfolio={portfolio} />}{tab === 'ownership' && <OwnershipPanel property={property} portfolio={portfolio} />}{tab === 'access' && <AccessPanel portfolio={portfolio} />}{tab === 'inspections' && <InspectionsPanel portfolio={portfolio} onInspection={onInspection} onSchedule={onSchedule} />}{tab === 'leases' && <LeasesPanel propertyId={property.id} portfolio={portfolio} />  }{tab === 'maintenance' && <MaintenanceWorkspace propertyId={property.id} portfolio={portfolio} />}</div>}</aside></div>
 }

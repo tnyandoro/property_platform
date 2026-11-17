@@ -8,6 +8,12 @@ Before implementing, modifying, reviewing or refactoring any property maintenanc
 
 That document is the product and engineering source of truth for the Property Maintenance Management feature. Follow its domain distinctions, existing-architecture guidance, security requirements, lifecycle rules, financial allocation rules and testing expectations.
 
+Before implementing, modifying, reviewing or refactoring tenant self-service functionality, also read:
+
+- `docs/TENANT_SELF_SERVICE_SPEC.md`
+
+The tenant self-service specification is the source of truth for tenant identity, invitation and activation, tenant-safe data access, lease renewals, document/photo visibility and tenant maintenance requests. When work affects both maintenance management and tenant self-service, read and follow both specifications.
+
 ## General repository rules
 
 - Inspect the live code and database schema before proposing or making changes. Do not assume documentation perfectly reflects the current implementation.

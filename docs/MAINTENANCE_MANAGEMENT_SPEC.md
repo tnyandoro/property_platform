@@ -4,6 +4,8 @@
 **Scope:** Property-level maintenance planning, work orders, scheduling, evidence, cost allocation and maintenance history  
 **Primary implementation location:** Existing property workspace → Maintenance tab
 
+**Companion specification:** `docs/TENANT_SELF_SERVICE_SPEC.md` defines tenant identity, tenant-safe access, invitations, lease renewals, property/document visibility and the tenant workspace.
+
 This document is the source of truth for the intended Property Maintenance Management feature. Read it before designing, implementing, refactoring or reviewing maintenance-related functionality.
 
 ## 1. Product objective
@@ -29,7 +31,7 @@ The repository already contains relevant foundations. Verify their current imple
 
 - `MaintenanceRequest` is the existing maintenance record. It includes `TenantScoped` and `Auditable`, belongs to a property, optionally belongs to a unit and room, has a reporter and optional assigned user, and has associated documents.
 - Existing `MaintenanceRequest` fields include title, description, category, priority, status, reported/acknowledged/resolved/closed timestamps, estimated cost, actual cost and resolution notes.
-- Existing maintenance statuses include `open`, `acknowledged`, `in_progress`, `resolved`, `closed` and `cancelled`.
+- The current maintenance lifecycle also includes `awaiting_approval`, `approved`, `scheduled`, `rejected` and `disputed`. `source_type` includes `tenant_request`; this does not itself grant tenants access to the management API.
 - `DamageAssessment` already captures a damage description, severity, responsibility (`landlord`, `tenant`, `shared`, `unknown`), estimated/agreed cost and resolution status.
 - `Document` can already be associated with a `maintenance_request`, and document records are tenant-scoped.
 - `Property` already has many `maintenance_requests` and `damage_assessments`.
@@ -39,6 +41,8 @@ The repository already contains relevant foundations. Verify their current imple
 Do not create a duplicate maintenance request/work-order table if the existing model can be evolved safely. Do not duplicate damage-assessment, party, document, lease, inspection or audit functionality.
 
 The README describes organisation as the tenant root and property assignments as object-level authorisation. Enforce both organisation boundaries and the user's property-level permissions.
+
+Tenant self-service is an approved, separate product experience—not a restricted view of the management portfolio. Its identity, permissions, payloads, document/photo visibility and renewal workflows are defined in `docs/TENANT_SELF_SERVICE_SPEC.md`. The tenant workflow must reuse the canonical maintenance request and document foundations without exposing management portfolio data or internal maintenance records.
 
 ## 3. User experience and navigation
 
@@ -244,6 +248,8 @@ Also support rejected, disputed and cancelled outcomes where appropriate.
 
 Map this lifecycle to the existing status model in a documented way. Do not create invalid or ambiguous status transitions.
 
+A tenant-submitted repair request is created as `open` with `source_type=tenant_request`, the authenticated tenant as reporter, and the tenant's verified lease and premises derived server-side. `open` means submitted and awaiting management review for this workflow; it is not expenditure approval. Do not use `awaiting_approval` to mean that a tenant request was received. Tenant submission must not approve work, authorise contractor work, set financial responsibility or create a tenant charge. Tenants may see only published updates and explicitly permitted scheduling/completion information; internal notes and audit history remain private. Follow the tenant specification for the tenant-facing status and update contract.
+
 Approval rules should be configurable. The product should support:
 - Manager approval within delegated budget/authority.
 - Owner approval above a configurable threshold or where policy requires it.
@@ -298,6 +304,8 @@ Support document types such as:
 
 Use existing upload/storage/security patterns. Enforce tenant and property access on upload and download. Do not expose storage keys or unrestricted document URLs.
 
+Documents and property photographs are not tenant-visible by default. Sharing requires an explicit visibility decision and server-side authorization on every read/download; see `docs/TENANT_SELF_SERVICE_SPEC.md`. Do not expose inspection evidence or management documents merely because they share a property, lease or maintenance-request parent.
+
 Preserve evidence and audit history when a job is closed.
 
 ## 11. Data model direction
@@ -324,6 +332,8 @@ Do not add a field or table simply because it appears in this document. First in
 Every operation must enforce:
 - Organisation/tenant isolation.
 - Property-level assignment/authorisation.
+- Tenant operations must additionally derive access from the authenticated tenant profile and eligible lease; do not grant tenant access through management property assignments.
+- Tenant responses must use an allowlist and must not expose internal notes, approval records, financial entries, cost allocations, owner records or unrelated tenant data.
 - Pundit policy checks or the established authorisation pattern.
 - Same-organisation validation for linked users, parties, contractors, leases, units, rooms, inspections, damage assessments and documents.
 - Secure document access.
@@ -336,6 +346,8 @@ Use the existing `TenantScoped` and `Auditable` concerns. Audit meaningful chang
 ## 13. API and frontend expectations
 
 Follow existing Rails API versioning, response conventions, authentication and Pundit policies.
+
+Management maintenance endpoints remain management-scoped. Tenant submission, listing, detail, attachment and published-update endpoints must use tenant/lease-scoped authorization and tenant-safe serializers; do not reuse the property portfolio or management work-order response unchanged. See `docs/TENANT_SELF_SERVICE_SPEC.md` for the proposed tenant API surface and payload boundaries.
 
 Provide the necessary operations to:
 - List/filter work orders for a property.
@@ -389,6 +401,8 @@ Add backend and frontend tests for at least:
 - Lease-informed suggestions without automatic tenant charging.
 - Inspection/damage assessment linkage.
 - Document access control.
+- Tenant request ownership, tenant-safe updates, and prevention of internal-note, approval and financial-data leakage.
+- Tenant document/photo visibility and lease-based access boundaries.
 - Audit history.
 - Completed, cancelled and historical records remaining visible.
 
@@ -401,8 +415,8 @@ Work in controlled stages:
 1. **Assessment:** inspect the live models, schema, controllers, routes, policies, serializers, frontend, tests and document workflow. Report gaps and propose the smallest coherent design.
 2. **Domain/data:** extend the existing maintenance foundation, add only necessary migrations/models/constraints/indexes, and preserve existing data/API behaviour.
 3. **Backend:** implement validations, tenant/property security, lifecycle services, schedule generation, approval, allocation and document integration.
-4. **Frontend:** implement the dashboard, work-order list/detail/form, schedule/calendar and maintenance history in the existing property workspace.
-5. **Integration:** connect inspections, damage assessments, leases and parties without duplicating their responsibilities.
+4. **Frontend:** implement the management dashboard, work-order list/detail/form, schedule/calendar and maintenance history in the existing property workspace; implement the tenant workspace separately as specified in `docs/TENANT_SELF_SERVICE_SPEC.md`.
+5. **Integration:** connect inspections, damage assessments, leases, parties and tenant requests without duplicating their responsibilities or exposing management-only data.
 6. **Verification:** run tests, type checks, lint/build and security-focused checks. Summarise migrations, endpoints, files, tests and known limitations.
 
 Do not stop at a plan when asked to implement. However, do not make irreversible schema or business-rule assumptions where important decisions remain open; surface those decisions clearly.
@@ -415,7 +429,7 @@ Do not silently assume these values:
 - Whether recurring work auto-generates, requires approval or only sends reminders.
 - Which evidence is mandatory for each work category or cost responsibility.
 - Which contractor fields and service-provider party types are already supported.
-- Whether tenant-facing maintenance request submission is in scope for the first release.
+- How tenant maintenance categories and urgency map to the existing work-order fields. Tenant request submission itself is in scope and is not an unresolved product decision.
 
 Implement sensible, configurable foundations and document any unresolved choices.
 
@@ -423,6 +437,6 @@ Implement sensible, configurable foundations and document any unresolved choices
 
 The feature is ready when a property manager can plan a one-time or recurring job, create and assign a work order, record its classification, review and approve who bears the cost, track estimates through actual payment, attach evidence, record completion, and retrieve the full history later.
 
-The solution must preserve existing maintenance and damage-assessment data, respect tenant/property security, and integrate naturally into the existing property workspace.
+The solution must preserve existing maintenance and damage-assessment data, respect tenant/property security, and integrate naturally into the existing property workspace. A tenant must also be able to submit a request against an eligible lease, track its status, and view only published management updates and explicitly shared evidence, without access to internal work authorisation or financial records.
 
 **Engineering principle:** Build a maintainable property asset lifecycle capability with trustworthy records. Data integrity, traceability, security and clear financial responsibility take precedence over visual polish or premature automation.
