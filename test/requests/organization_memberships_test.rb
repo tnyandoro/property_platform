@@ -20,7 +20,7 @@ class OrganizationMembershipsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     memberships = response.parsed_body.fetch("memberships")
-    assert_equal [@admin.id, @member.id].sort, memberships.map { |item| item.dig("user", "id") }.sort
+    assert_equal [ @admin.id, @member.id ].sort, memberships.map { |item| item.dig("user", "id") }.sort
     assert_not_includes memberships.map { |item| item.dig("user", "id") }, global_user.id
   end
 
