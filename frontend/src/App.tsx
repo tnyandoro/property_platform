@@ -1116,7 +1116,7 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
         method: 'POST',
         body: JSON.stringify({ tenant_invitation: { lease_id: inviteLease, email: inviteEmail } }),
       })
-      setInviteMessage('Invitation sent. The tenant can use the link in their email to activate an account.')
+      setInviteMessage('Invitation created. In development, inspect tmp/mails; in production, the tenant receives the activation email.')
       await loadInvitations()
       setInviteLease(null)
       setInviteEmail('')
@@ -1134,7 +1134,7 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
     setInviteMessage('')
     try {
       await api(`/tenant_invitations/${id}/${action}`, { method: 'POST' })
-      setInviteMessage(action === 'resend' ? 'A new activation link has been sent.' : 'Invitation revoked. Its activation link can no longer be used.')
+      setInviteMessage(action === 'resend' ? 'A new activation link has been generated. Check the development mail output or the tenant's inbox.' : 'Invitation revoked. Its activation link can no longer be used.')
       await loadInvitations()
     } catch (err) {
       setError((err as Error).message)
