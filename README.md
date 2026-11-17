@@ -27,6 +27,8 @@ Four migrations, in build order:
 ## Tenant invitations and account activation
 
 Management users with the `invite_tenants` property capability (or organisation administrators) can invite a tenant from an active lease. Estate360 emails a single-use activation link. The raw token is never stored; only its SHA-256 digest is persisted. The link expires after seven days. The tenant sets their name and password on the activation page, after which they can sign in using the Tenant workspace.
+Management users with the relevant property capability can also list invitations for a property, resend a pending invitation, or revoke it. Resending rotates the token and invalidates the previous link; revocation immediately prevents activation. Expired invitations are marked expired when accessed and can be replaced with a new invitation.
+
 
 ### Local email testing
 
