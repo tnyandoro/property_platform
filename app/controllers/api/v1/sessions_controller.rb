@@ -37,6 +37,8 @@ module Api
         end
 
         head :no_content
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       private
