@@ -1,4 +1,5 @@
 class OrganizationMembership < ApplicationRecord
+  include Auditable
   belongs_to :organization
   belongs_to :user
 
