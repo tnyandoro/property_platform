@@ -175,4 +175,25 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert_nil user.legacy_organization
     assert_empty user.organization_memberships
   end
+
+  test "global user can join multiple organizations without a legacy organization" do
+    first = Organization.create!(name: "Global member first #{SecureRandom.hex(4)}")
+    second = Organization.create!(name: "Global member second #{SecureRandom.hex(4)}")
+    user = User.create!(
+      email: "global-member-#{SecureRandom.hex(4)}@example.com",
+      first_name: "Global",
+      last_name: "Member",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+
+    user.organization_memberships.create!(organization: first, role: "member", status: "active")
+    user.organization_memberships.create!(organization: second, role: "administrator", status: "active")
+
+    assert_nil user.legacy_organization
+    assert user.member_of?(first)
+    assert user.member_of?(second)
+    assert user.membership_for(second).administrator?
+  end
+
 end
