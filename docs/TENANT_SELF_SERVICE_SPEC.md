@@ -26,7 +26,7 @@ The only financial terms included in tenant responses are the tenant's own agree
 
 Verify the live code and schema before implementation. The current foundations include:
 
-- `User` is organisation-scoped and uses `has_secure_password`. Its email uniqueness is organisation-scoped, but login currently looks up email without an organisation context. Resolve ambiguity without silently authenticating the wrong account.
+- `User` is the global authentication identity and uses `has_secure_password`. `OrganizationMembership` links that identity to one or more organisations and carries the organisation-specific role and membership status. The existing `users.organization_id` and `users.organization_role` fields are transitional compatibility fields; do not treat them as the long-term authority. Existing email uniqueness is organisation-scoped, so duplicate-email identities must be reconciled explicitly before enforcing global email uniqueness.
 - `Party` is the organisation-scoped counterparty record. `Lease` references one tenant Party, property and unit; there is no User-to-Party link today.
 - `PropertyAssignment` is the existing property access foundation. `PropertyOwnership` associates an owner Party with a property but does not link that Party to an account.
 - `Document` and Active Storage support lease and maintenance evidence. Documents have no tenant visibility flag.
@@ -56,7 +56,7 @@ Do not add government-identity fields by default. If a later approved requiremen
 
 ### 3.2 Organisation context and authentication compatibility
 
-For the initial release, accounts remain organisation-scoped. Add explicit organisation context to login and activation so credentials resolve against a single organisation. Preserve the existing login route and existing single-organisation users: a legacy login without context may succeed only when the email identifies exactly one eligible account; ambiguous matches must require organisation context and must never select an arbitrary record.
+Users are global identities that may have active memberships in multiple organisations. Login establishes an active organisation context, and every authenticated request validates that context against an active `OrganizationMembership`. Preserve the existing login route and migrate each existing user into a membership for their current organisation and role. During the transition, a legacy login without organisation context may succeed only when the email identifies exactly one eligible identity; ambiguous duplicate-email accounts must be reconciled or require explicit organisation context, and must never select an arbitrary record. Do not merge duplicate accounts automatically. Keep tenant Party relationships separate from organisation membership: a tenant may access a tenancy through a verified User-to-Party link and eligible Lease even when they are not an employee/member of the managing organisation.
 
 Continue using the existing secure password mechanism. Provide an authenticated password-change flow and a secure reset/activation flow; never email temporary passwords. Activation verifies email possession. Add rate limits and generic public responses to reduce credential stuffing and account enumeration. Token expiry and logout/revocation behavior must be explicit; do not claim a stateless bearer token is revoked when it is not.
 
