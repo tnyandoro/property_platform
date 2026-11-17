@@ -22,7 +22,8 @@ class User < ApplicationRecord
   after_create :create_initial_organization_membership
 
   def membership_for(organization)
-    organization_memberships.active.find_by(organization: organization)
+    organization_id = organization.respond_to?(:id) ? organization.id : organization
+    organization_memberships.active.find_by(organization_id: organization_id)
   end
 
   def member_of?(organization)
@@ -36,10 +37,13 @@ class User < ApplicationRecord
   def authorized_for_property?(property, capability)
     return false unless property
     platform_admin = platform_administrator?
-    return false unless platform_admin || property.organization_id == organization_id
-    return true if platform_admin || organization_role == "administrator"
+    membership = membership_for(property.organization_id)
+    return false unless platform_admin || membership
+    return true if platform_admin || membership.administrator?
 
-    verified_party_ids = party_accounts.verified.pluck(:party_id)
+    verified_party_ids = party_accounts.verified
+      .where(organization_id: property.organization_id)
+      .pluck(:party_id)
     if PropertyOwnership.active_on(Date.current)
         .where(
           organization_id: property.organization_id,
