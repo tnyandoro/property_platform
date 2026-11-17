@@ -38,9 +38,10 @@ class User < ApplicationRecord
     return false unless property
     platform_admin = platform_administrator?
     membership = membership_for(property.organization_id)
-    return false unless platform_admin || membership
-    return true if platform_admin || membership.administrator?
+    return true if platform_admin || membership&.administrator?
 
+    # A verified owner may access their property without being an employee
+    # or member of the organisation that manages it.
     verified_party_ids = party_accounts.verified
       .where(organization_id: property.organization_id)
       .pluck(:party_id)
@@ -54,6 +55,8 @@ class User < ApplicationRecord
         .exists?
       return true
     end
+
+    return false unless membership
 
     property_assignments
       .where(property_id: property.id, organization_id: property.organization_id)
