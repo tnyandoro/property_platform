@@ -300,7 +300,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 1, request.quotes.count
     assert_equal 1, request.invoices.count
     assert_equal invoice_id, request.payments.sole.invoice_id
-    assert request.financial_entries.all? { |entry| entry.type.nil? }
+    assert_equal %w[MaintenanceInvoice MaintenancePayment MaintenanceQuote], request.financial_entries.order(:entry_type).pluck(:type)
   end
 
   test "marks a pending payment paid only through its property-scoped endpoint" do
