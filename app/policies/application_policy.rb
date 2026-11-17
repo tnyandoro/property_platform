@@ -20,15 +20,14 @@ class ApplicationPolicy
     record_organization_id = record.organization_id if record.respond_to?(:organization_id)
     return record_organization_id if user&.member_of?(record_organization_id)
 
-    user&.organization_id
+    nil
   end
 
   def organization_administrator?
     if Current.workspace.present?
       Current.membership&.administrator? || false
     else
-      user&.membership_for(organization_id)&.administrator? ||
-        user&.organization_role == "administrator"
+      user&.membership_for(organization_id)&.administrator? || false
     end
   end
 
