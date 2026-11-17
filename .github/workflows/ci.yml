@@ -50,7 +50,7 @@ jobs:
             rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
 
       - name: Lint code for consistent style
-        run: bundle exec rubocop -f simple app/models/organization.rb app/models/organization_membership.rb app/models/property_assignment.rb app/models/user.rb db/migrate/20261117000000_create_organization_memberships.rb test/models/organization_membership_test.rb
+        run: bundle exec rubocop -f simple app/models/organization.rb app/models/organization_membership.rb app/models/property_assignment.rb app/models/user.rb db/migrate/20261117000000_create_organization_memberships.rb test/models/organization_membership_test.rb test/models/auditable_test.rb test/models/maintenance_domain_test.rb test/requests/maintenance_requests_test.rb test/requests/ownership_test.rb test/requests/tenant_dashboard_test.rb
 
   test:
     runs-on: ubuntu-24.04
@@ -84,6 +84,5 @@ jobs:
       - name: Run organization membership tests
         run: bundle exec rails db:prepare && bundle exec rails test test/models/organization_membership_test.rb
 
-      - name: Run full regression suite (existing baseline)
+      - name: Run full Rails regression suite
         run: bundle exec rails test
-        continue-on-error: true
