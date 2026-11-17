@@ -45,7 +45,7 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
       status: "active"
     )
 
-    assert_equal [first.id, second.id].sort, user.organization_memberships.active.pluck(:organization_id).sort
+    assert_equal [ first.id, second.id ].sort, user.organization_memberships.active.pluck(:organization_id).sort
     assert membership.administrator?
     assert_equal first, user.reload.organization # Legacy default remains during the transition.
   end
@@ -121,5 +121,4 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
 
     assert user.authorized_for_property?(property, "invite_tenants")
   end
-
 end
