@@ -23,7 +23,7 @@ jobs:
         run: bundle exec brakeman --no-pager
 
       - name: Scan for known security vulnerabilities in gems used
-        run: bin/bundler-audit
+        run: bundle exec bundler-audit check --config config/bundler-audit.yml
 
   lint:
     runs-on: ubuntu-24.04
