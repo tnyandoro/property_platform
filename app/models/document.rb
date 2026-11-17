@@ -102,8 +102,8 @@ class Document < ApplicationRecord
       errors.add(:published_by, "is not authorized to share documents for this property")
     end
 
-    linked_records = [lease, inspection, maintenance_request, maintenance_financial_entry,
-      damage_assessment, property_ownership].compact
+    linked_records = [ lease, inspection, maintenance_request, maintenance_financial_entry,
+      damage_assessment, property_ownership ].compact
     if linked_records.any? { |record| record.organization_id != organization_id }
       errors.add(:base, "tenant-visible document parents must belong to the same organization")
     end
