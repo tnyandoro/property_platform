@@ -126,6 +126,23 @@ class TenantInvitationsTest < ActionDispatch::IntegrationTest
     assert_equal "pending", invitations.first.fetch("status")
   end
 
+  test "creating a new invitation expires an old pending invitation first" do
+    create_invitation_token
+    old_invitation = TenantInvitation.find_by!(target_email: "new.tenant@example.com")
+    old_invitation.update!(expires_at: 1.minute.ago)
+
+    assert_difference("TenantInvitation.count", 1) do
+      post "/api/v1/tenant_invitations",
+        params: { tenant_invitation: { lease_id: @lease.id, email: "new.tenant@example.com" } },
+        headers: authenticate_as(@admin, workspace: "management"),
+        as: :json
+    end
+
+    assert_response :created
+    assert_equal "expired", old_invitation.reload.status
+    assert_equal "pending", TenantInvitation.order(:created_at).last.status
+  end
+
   test "resending a pending invitation rotates its token and extends expiry" do
     old_token = create_invitation_token
     invitation = TenantInvitation.find_by!(token_digest: Digest::SHA256.hexdigest(old_token))
