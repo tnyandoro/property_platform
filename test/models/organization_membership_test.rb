@@ -195,5 +195,4 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert user.member_of?(second)
     assert user.membership_for(second).administrator?
   end
-
 end
