@@ -51,7 +51,7 @@ module Api
           user = matches.first
           @membership = resolve_management_membership(user, organization_id.presence, nil)
           @organization = @membership&.organization
-          return user if @membership
+          user if @membership
         elsif @workspace == "tenant"
           if organization_id.present?
             users = users.joins(party_accounts: :tenant_profile).where(
@@ -68,7 +68,7 @@ module Api
 
           user = matches.first
           @organization = resolve_tenant_organization(user, organization_id.presence)
-          return user if @organization && tenant_account?(user, @organization)
+          user if @organization && tenant_account?(user, @organization)
         end
       end
 
