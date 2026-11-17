@@ -1,4 +1,4 @@
-raise "Demo seed accounts must not be created in production" if Rails.env.production?
+raise "Demo seed accounts are only for development/test" unless Rails.env.development? || Rails.env.test?
 
 seed_password = ENV["SEED_USER_PASSWORD"].presence
 raise "Set SEED_USER_PASSWORD before running db:seed" if seed_password.blank?
