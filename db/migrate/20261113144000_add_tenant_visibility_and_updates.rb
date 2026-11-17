@@ -22,7 +22,7 @@ class AddTenantVisibilityAndUpdates < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :property_photos, [:organization_id, :property_id, :visibility, :position],
+    add_index :property_photos, [ :organization_id, :property_id, :visibility, :position ],
       name: "idx_property_photos_tenant_visibility"
     add_check_constraint :property_photos,
       "visibility IN ('internal', 'tenant_visible') AND position >= 0",
@@ -46,7 +46,7 @@ class AddTenantVisibilityAndUpdates < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :maintenance_request_updates, [:organization_id, :maintenance_request_id, :status],
+    add_index :maintenance_request_updates, [ :organization_id, :maintenance_request_id, :status ],
       name: "idx_maintenance_updates_request_status"
     add_check_constraint :maintenance_request_updates,
       "update_type IN ('status', 'update', 'scheduled_visit', 'completion')",
@@ -72,7 +72,7 @@ class AddTenantVisibilityAndUpdates < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :tenant_notifications, [:organization_id, :tenant_profile_id, :created_at],
+    add_index :tenant_notifications, [ :organization_id, :tenant_profile_id, :created_at ],
       name: "idx_tenant_notifications_profile"
     add_check_constraint :tenant_notifications,
       "num_nonnulls(lease_id, lease_renewal_proposal_id, lease_extension_request_id, maintenance_request_update_id) = 1",

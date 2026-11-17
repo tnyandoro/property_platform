@@ -76,7 +76,7 @@ class TenantInvitationsTest < ActionDispatch::IntegrationTest
 
     mail = ActionMailer::Base.deliveries.last
 
-    assert_equal ["new.tenant@example.com"], mail.to
+    assert_equal [ "new.tenant@example.com" ], mail.to
     assert_includes mail.from.join, "estate360@saraphim.co.za"
     assert_match(
       /accept-tenant-invitation\?token=/,

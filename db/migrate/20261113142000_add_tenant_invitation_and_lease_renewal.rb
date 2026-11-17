@@ -22,7 +22,7 @@ class AddTenantInvitationAndLeaseRenewal < ActiveRecord::Migration[8.1]
     end
 
     add_index :tenant_invitations, :token_digest, unique: true
-    add_index :tenant_invitations, [:organization_id, :lease_id, :target_email],
+    add_index :tenant_invitations, [ :organization_id, :lease_id, :target_email ],
       unique: true,
       where: "status = 'pending'",
       name: "idx_tenant_invitations_pending_email"
@@ -59,7 +59,7 @@ class AddTenantInvitationAndLeaseRenewal < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :lease_renewal_proposals, [:lease_id, :version_number],
+    add_index :lease_renewal_proposals, [ :lease_id, :version_number ],
       unique: true,
       name: "idx_lease_renewal_proposals_version"
     add_check_constraint :lease_renewal_proposals,
@@ -90,7 +90,7 @@ class AddTenantInvitationAndLeaseRenewal < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :lease_extension_requests, [:organization_id, :lease_id, :status],
+    add_index :lease_extension_requests, [ :organization_id, :lease_id, :status ],
       name: "idx_lease_extension_requests_scope"
     add_check_constraint :lease_extension_requests,
       "status IN ('pending', 'proposal_created', 'rejected', 'withdrawn', 'closed')",
