@@ -48,6 +48,14 @@ module Authentication
       Current.organization = organization
       Current.membership = nil
       Current.workspace = "tenant"
+    when "owner"
+      organization = resolve_owner_organization(user, organization_id)
+      return authentication_required unless organization && owner_account?(user, organization)
+
+      Current.user = user
+      Current.organization = organization
+      Current.membership = nil
+      Current.workspace = "owner"
     else
       authentication_required
     end
@@ -81,6 +89,12 @@ module Authentication
     return if Current.workspace == "tenant"
 
     render json: { error: "Tenant workspace required" }, status: :forbidden
+  end
+
+  def require_owner_workspace!
+    return if Current.workspace == "owner"
+
+    render json: { error: "Owner workspace required" }, status: :forbidden
   end
 
   def verified_token
@@ -158,6 +172,42 @@ module Authentication
         Date.current
       ).exists?
     end
+  end
+
+  def resolve_owner_organization(user, organization_id)
+    if organization_id.present?
+      organization = Organization.find_by(id: organization_id)
+      return organization if organization && owner_account?(user, organization)
+
+      return
+    end
+
+    organization_ids = eligible_owner_ownerships(user).distinct.pluck(:organization_id)
+    return unless organization_ids.one?
+
+    Organization.find_by(id: organization_ids.first)
+  end
+
+  def owner_account?(user, organization)
+    return false unless user.email_verified_at.present?
+
+    eligible_owner_ownerships(user, organization).exists?
+  end
+
+  def eligible_owner_ownerships(user, organization = nil)
+    ownerships = PropertyOwnership.joins(:party)
+      .joins(
+        "INNER JOIN party_accounts ON party_accounts.party_id = property_ownerships.party_id " \
+        "AND party_accounts.organization_id = property_ownerships.organization_id"
+      )
+      .where(
+        property_ownerships: { verification_status: "verified" },
+        party_accounts: { user_id: user.id, status: "verified" }
+      )
+      .merge(PropertyOwnership.active_on(Date.current))
+    ownerships = ownerships.where(property_ownerships: { organization_id: organization.id }) if organization
+
+    ownerships
   end
 
   def authentication_required
