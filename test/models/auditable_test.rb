@@ -15,6 +15,7 @@ class AuditableTest < ActiveSupport::TestCase
   teardown { Current.user = nil }
 
   test "creates an audit log on property create" do
+    property = nil
     assert_difference "AuditLog.count", 1 do
       property = @organization.properties.create!(name: "Audited Property", property_type: "residential")
     end
