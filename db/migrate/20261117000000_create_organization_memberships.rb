@@ -34,6 +34,23 @@ class CreateOrganizationMemberships < ActiveRecord::Migration[8.1]
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
       FROM users
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM party_accounts
+        INNER JOIN tenant_profiles
+          ON tenant_profiles.party_account_id = party_accounts.id
+        WHERE party_accounts.user_id = users.id
+          AND party_accounts.organization_id = users.organization_id
+          AND party_accounts.status = 'verified'
+          AND tenant_profiles.organization_id = users.organization_id
+          AND COALESCE(NULLIF(users.organization_role, ''), 'member') <> 'administrator'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM property_assignments
+            WHERE property_assignments.user_id = users.id
+              AND property_assignments.organization_id = users.organization_id
+          )
+      )
     SQL
   end
 
