@@ -1082,8 +1082,28 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviting, setInviting] = useState(false)
+  const [invitations, setInvitations] = useState<Array<{
+    id: string
+    lease_id: string
+    email: string
+    status: 'pending' | 'accepted' | 'revoked' | 'expired'
+    expires_at: string
+  }>>([])
+  const [invitationAction, setInvitationAction] = useState<string | null>(null)
+
+  async function loadInvitations() {
+    const result = await api<{ invitations: typeof invitations }>(`/tenant_invitations?property_id=${encodeURIComponent(propertyId)}`)
+    setInvitations(result.invitations)
+  }
 
   useEffect(() => setLeases(portfolio.leases ?? []), [portfolio.leases])
+  useEffect(() => {
+    let active = true
+    api<{ invitations: typeof invitations }>(`/tenant_invitations?property_id=${encodeURIComponent(propertyId)}`)
+      .then((result) => { if (active) setInvitations(result.invitations) })
+      .catch((err) => { if (active) setError((err as Error).message) })
+    return () => { active = false }
+  }, [propertyId])
 
   async function sendInvitation(event: React.FormEvent) {
     event.preventDefault()
@@ -1097,12 +1117,29 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
         body: JSON.stringify({ tenant_invitation: { lease_id: inviteLease, email: inviteEmail } }),
       })
       setInviteMessage('Invitation sent. The tenant can use the link in their email to activate an account.')
+      await loadInvitations()
       setInviteLease(null)
       setInviteEmail('')
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setInviting(false)
+    }
+  }
+
+  async function manageInvitation(id: string, action: 'resend' | 'revoke') {
+    if (action === 'revoke' && !window.confirm('Revoke this tenant invitation? Its current activation link will stop working.')) return
+    setInvitationAction(id)
+    setError('')
+    setInviteMessage('')
+    try {
+      await api(`/tenant_invitations/${id}/${action}`, { method: 'POST' })
+      setInviteMessage(action === 'resend' ? 'A new activation link has been sent.' : 'Invitation revoked. Its activation link can no longer be used.')
+      await loadInvitations()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setInvitationAction(null)
     }
   }
 
@@ -1124,7 +1161,8 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
       const visibleLeases = unitLeases.slice(0, 5)
       return <section className="lease-unit-history" key={unit.id}>
         <h4>{label}</h4>
-        {visibleLeases.map((lease) => <div className="lease-row" key={lease.id}>
+        {visibleLeases.map((lease) => <React.Fragment key={lease.id}>
+        <div className="lease-row">
           <div className="lease-row-main">
             <strong>{lease.tenant_name || 'Tenant not recorded'}</strong>
             <span>{lease.lease_type.replace(/_/g, ' ')} · {lease.start_date} to {lease.end_date || 'End date not recorded'}</span>
@@ -1137,7 +1175,16 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
               : <span>PDF not attached</span>}
             {lease.status === 'active' && <button className="secondary-button" type="button" onClick={() => { setError(''); setInviteMessage(''); setInviteEmail(''); setInviteLease(lease.id) }}>Invite tenant</button>}
           </div>
+        </div>
+        {invitations.filter((invitation) => invitation.lease_id === lease.id).map((invitation) => <div className="invitation-row" key={invitation.id}>
+          <div><strong>{invitation.email}</strong><span>Tenant invitation · expires {new Date(invitation.expires_at).toLocaleDateString()}</span></div>
+          <small className={`status-${invitation.status}`}>{invitation.status.replace('_', ' ')}</small>
+          {invitation.status === 'pending' && <div className="invitation-actions">
+            <button className="secondary-button" type="button" disabled={invitationAction === invitation.id} onClick={() => manageInvitation(invitation.id, 'resend')}>{invitationAction === invitation.id ? 'Working...' : 'Resend'}</button>
+            <button className="secondary-button danger-button" type="button" disabled={invitationAction === invitation.id} onClick={() => manageInvitation(invitation.id, 'revoke')}>Revoke</button>
+          </div>}
         </div>)}
+        </React.Fragment>)}
         {unitLeases.length > 5 && <p className="lease-history-note">Showing the latest 5 of {unitLeases.length} leases. Older lease records remain stored.</p>}
       </section>
     }) : <EmptyPanel label={portfolio.units.length ? 'No leases recorded yet' : 'Add a unit before recording a lease'} />}
