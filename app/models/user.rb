@@ -59,7 +59,7 @@ class User < ApplicationRecord
     platform_admin = platform_administrator?
     membership = membership_for(property.organization_id)
     return true if platform_admin || membership&.administrator?
-    return OWNER_CAPABILITIES.include?(capability) if owner_of_property?(property)
+    return true if owner_of_property?(property) && OWNER_CAPABILITIES.include?(capability)
     return false unless membership
 
     property_assignments
