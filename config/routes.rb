@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "login", to: "sessions#create"
       delete "logout", to: "sessions#destroy"
+      resources :organization_memberships, only: %i[index create update destroy]
       get "tenant/dashboard", to: "tenant/dashboard#show"
       get "parties", to: "parties#index"
       resources :properties
