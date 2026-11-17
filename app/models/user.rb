@@ -3,6 +3,8 @@ class User < ApplicationRecord
 
   has_secure_password
 
+  has_many :organization_memberships, dependent: :restrict_with_error
+  has_many :member_organizations, through: :organization_memberships, source: :organization
   has_many :property_assignments
   has_many :properties, through: :property_assignments
   has_many :party_accounts, dependent: :restrict_with_error
@@ -16,6 +18,16 @@ class User < ApplicationRecord
   validates :organization_role, inclusion: { in: ORGANIZATION_ROLES }, if: -> { has_attribute?(:organization_role) }
 
   normalizes :email, with: ->(email) { email.strip.downcase }
+
+  after_create :create_initial_organization_membership
+
+  def membership_for(organization)
+    organization_memberships.active.find_by(organization: organization)
+  end
+
+  def member_of?(organization)
+    membership_for(organization).present?
+  end
 
   def platform_administrator?
     platform_administrator_grants.active.exists?
@@ -44,5 +56,15 @@ class User < ApplicationRecord
       .where("starts_at <= ?", Time.current)
       .where("ends_at IS NULL OR ends_at >= ?", Time.current)
       .any? { |assignment| assignment.has_capability?(capability) }
+  end
+
+  private
+
+  def create_initial_organization_membership
+    organization_memberships.create!(
+      organization: organization,
+      role: organization_role.presence || "member",
+      status: "active"
+    )
   end
 end
