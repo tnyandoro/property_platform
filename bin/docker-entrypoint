@@ -9,6 +9,9 @@ echo "=== ESTATE360: PORT=${PORT:-not set} ==="
 
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   echo "=== ESTATE360: Running database preparation ==="
+  echo "=== ESTATE360: Runtime Ruby version ==="
+  ruby -v
+  
   ./bin/rails db:prepare
   echo "=== ESTATE360: Database preparation completed ==="
 fi
