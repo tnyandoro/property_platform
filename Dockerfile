@@ -71,6 +71,9 @@ WORKDIR /rails
 COPY --chown=rails:rails --from=build /usr/local/bundle /usr/local/bundle
 COPY --chown=rails:rails --from=build /rails /rails
 
+RUN ls -l /rails/bin/rails /rails/bin/docker-entrypoint && \
+    stat -c '%a %n' /rails/bin/rails /rails/bin/docker-entrypoint
+
 USER rails:rails
 
 # Render supplies PORT at runtime.
