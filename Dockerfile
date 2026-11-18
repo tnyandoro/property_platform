@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-ARG RUBY_VERSION=3.3.0
+ARG RUBY_VERSION=3.3.1
 
 # --------------------------------------------------
 # Base image
