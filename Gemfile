@@ -38,7 +38,7 @@ gem "cloudinary", "~> 2.0"
 gem "activestorage-cloudinary-service", "~> 0.2"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
-# gem "rack-cors"
+gem "rack-cors"
 
 group :development, :test do
   # Load local environment variables from .env.

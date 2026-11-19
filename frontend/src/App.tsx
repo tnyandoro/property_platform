@@ -1,6 +1,7 @@
+import React, { Fragment } from 'react';
 import { useEffect, useState } from 'react'
 import { Building2, CalendarPlus, ChevronDown, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench, X } from 'lucide-react'
-import { api, responseError } from './api'
+import { api, apiUrl, responseError } from './api'
 import { MaintenanceWorkspace } from './MaintenanceWorkspace'
 import { TenantDashboard } from './TenantDashboard'
 
@@ -126,6 +127,7 @@ function App() {
   function signOut() { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); setUser(null); setProperties([]); setSelected(null); setPortfolio(null) }
   const visibleProperties = properties.filter((property) => `${property.name} ${property.address.city || ''} ${property.property_type}`.toLowerCase().includes(search.toLowerCase()))
 
+  if (window.location.pathname === '/accept-tenant-invitation') return <TenantInvitationActivation />
   if (!user) return <Login onLogin={(nextUser, token) => { localStorage.setItem('property_platform_token', token); localStorage.setItem('property_platform_user', JSON.stringify(nextUser)); setUser(nextUser) }} />
   if (user.workspace === 'tenant') return <TenantDashboard onSignOut={signOut} />
 
@@ -154,6 +156,104 @@ function App() {
   async function setInspectionId(propertyId: string, inspectionId: string) {
     try { setInspection(await api<InspectionDetail>(`/properties/${propertyId}/inspections/${inspectionId}`)) } catch (err) { setError((err as Error).message) }
   }
+}
+
+
+function TenantInvitationActivation() {
+  const token = new URLSearchParams(window.location.search).get('token') || ''
+  const [invitation, setInvitation] = useState<{ email: string; organisation: string; property: string; lease_start_date: string; lease_end_date?: string | null } | null>(null)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [activated, setActivated] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (!token) {
+      setError('This invitation link is missing its security token.')
+      setLoading(false)
+      return
+    }
+    api<typeof invitation>(`/tenant/invitations/${encodeURIComponent(token)}`)
+      .then((data) => { if (active) setInvitation(data) })
+      .catch((err) => { if (active) setError((err as Error).message) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [token])
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setError('')
+    if (password.length < 8) {
+      setError('Use a password with at least 8 characters.')
+      return
+    }
+    if (password !== passwordConfirmation) {
+      setError('Your password confirmation does not match.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await api('/tenant/invitations/' + encodeURIComponent(token) + '/accept', {
+        method: 'POST',
+        body: JSON.stringify({
+          user: {
+            first_name: firstName,
+            last_name: lastName,
+            password,
+            password_confirmation: passwordConfirmation,
+          },
+        }),
+      })
+      setActivated(true)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return <div className="login-page">
+    <div className="login-art">
+      <div className="brand light"><span className="brand-mark"><Building2 size={18} /></span><span>Estate360</span></div>
+      <div className="art-copy">
+        <p className="eyebrow">Tenant account activation</p>
+        <h1>Your home,<br /><em>in view.</em></h1>
+        <p>Activate your secure tenant account to access your tenancy information and communicate with your property team.</p>
+      </div>
+      <div className="art-footer">02 <span /> Tenant access</div>
+    </div>
+    <form className="login-card" onSubmit={submit}>
+      <div className="mobile-brand brand"><span className="brand-mark"><Building2 size={18} /></span><span>Estate360</span></div>
+      {activated ? <>
+        <p className="eyebrow">Account activated</p>
+        <h2>You’re all set.</h2>
+        <p className="login-help">Your tenant account has been created. Sign in with your invited email address and the password you just chose.</p>
+        <button className="primary-button full" type="button" onClick={() => { localStorage.removeItem('property_platform_token'); localStorage.removeItem('property_platform_user'); window.location.href = '/' }}>Go to sign in <ChevronRight size={17} /></button>
+      </> : <>
+        <p className="eyebrow">Accept your invitation</p>
+        <h2>Create your tenant account</h2>
+        {loading ? <p className="login-help">Checking your invitation...</p> : error && !invitation ? <div className="form-error" role="alert">{error}</div> : invitation && <>
+          <div className="login-help">
+            <strong>{invitation.property}</strong><br />
+            {invitation.organisation}<br />
+            Invited email: {invitation.email}<br />
+            Lease: {invitation.lease_start_date} – {invitation.lease_end_date || 'Ongoing'}
+          </div>
+          <label>First name<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required /></label>
+          <label>Last name<input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required /></label>
+          <label>Create password<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" minLength={8} required /></label>
+          <label>Confirm password<input value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type="password" autoComplete="new-password" minLength={8} required /></label>
+          {error && <div className="form-error" role="alert">{error}</div>}
+          <button className="primary-button full" disabled={submitting}>{submitting ? 'Activating account...' : 'Activate account'} <ChevronRight size={17} /></button>
+        </>}
+      </>}
+    </form>
+  </div>
 }
 
 function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
@@ -979,8 +1079,74 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
   const [leases, setLeases] = useState(portfolio.leases ?? [])
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
+  const [inviteLease, setInviteLease] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteMessage, setInviteMessage] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [invitations, setInvitations] = useState<Array<{
+    id: string
+    lease_id: string
+    email: string
+    status: 'pending' | 'accepted' | 'revoked' | 'expired'
+    expires_at: string
+  }>>([])
+  const [invitationAction, setInvitationAction] = useState<string | null>(null)
+
+  async function loadInvitations() {
+    const result = await api<{ invitations: typeof invitations }>(`/tenant_invitations?property_id=${encodeURIComponent(propertyId)}`)
+    setInvitations(result.invitations)
+  }
 
   useEffect(() => setLeases(portfolio.leases ?? []), [portfolio.leases])
+  useEffect(() => {
+    let active = true
+    api<{ invitations: typeof invitations }>(`/tenant_invitations?property_id=${encodeURIComponent(propertyId)}`)
+      .then((result) => { if (active) setInvitations(result.invitations) })
+      .catch((err) => { if (active) setError((err as Error).message) })
+    return () => { active = false }
+  }, [propertyId])
+
+  async function sendInvitation(event: React.FormEvent) {
+    event.preventDefault()
+    if (!inviteLease) return
+    setInviting(true)
+    setError('')
+    setInviteMessage('')
+    try {
+      await api('/tenant_invitations', {
+        method: 'POST',
+        body: JSON.stringify({ tenant_invitation: { lease_id: inviteLease, email: inviteEmail } }),
+      })
+      setInviteMessage('Invitation created. In development, inspect tmp/mails; in production, the tenant receives the activation email.')
+      await loadInvitations()
+      setInviteLease(null)
+      setInviteEmail('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  async function manageInvitation(id: string, action: 'resend' | 'revoke') {
+    if (action === 'revoke' && !window.confirm('Revoke this tenant invitation? Its current activation link will stop working.')) return
+    setInvitationAction(id)
+    setError('')
+    setInviteMessage('')
+    try {
+      await api(`/tenant_invitations/${id}/${action}`, { method: 'POST' })
+     setInviteMessage(
+        action === 'resend'
+          ? "A new activation link has been generated. Check the development mail output or the tenant's inbox."
+          : 'Invitation revoked. Its activation link can no longer be used.'
+      )
+      await loadInvitations()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setInvitationAction(null)
+    }
+  }
 
   const unitHistories = portfolio.units.map((unit) => ({
     unit,
@@ -1000,7 +1166,8 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
       const visibleLeases = unitLeases.slice(0, 5)
       return <section className="lease-unit-history" key={unit.id}>
         <h4>{label}</h4>
-        {visibleLeases.map((lease) => <div className="lease-row" key={lease.id}>
+        {visibleLeases.map((lease) => <Fragment key={lease.id}>
+        <div className="lease-row">
           <div className="lease-row-main">
             <strong>{lease.tenant_name || 'Tenant not recorded'}</strong>
             <span>{lease.lease_type.replace(/_/g, ' ')} · {lease.start_date} to {lease.end_date || 'End date not recorded'}</span>
@@ -1011,11 +1178,31 @@ function LeasesPanel({ propertyId, portfolio }: { propertyId: string; portfolio:
             {lease.pdf_url
               ? <a href={lease.pdf_url} target="_blank" rel="noreferrer">{lease.pdf_filename || 'View lease PDF'}</a>
               : <span>PDF not attached</span>}
+            {lease.status === 'active' && <button className="secondary-button" type="button" onClick={() => { setError(''); setInviteMessage(''); setInviteEmail(''); setInviteLease(lease.id) }}>Invite tenant</button>}
           </div>
+        </div>
+        {invitations.filter((invitation) => invitation.lease_id === lease.id).map((invitation) => <div className="invitation-row" key={invitation.id}>
+          <div><strong>{invitation.email}</strong><span>Tenant invitation · expires {new Date(invitation.expires_at).toLocaleDateString()}</span></div>
+          <small className={`status-${invitation.status}`}>{invitation.status.replace('_', ' ')}</small>
+          {invitation.status === 'pending' && <div className="invitation-actions">
+            <button className="secondary-button" type="button" disabled={invitationAction === invitation.id} onClick={() => manageInvitation(invitation.id, 'resend')}>{invitationAction === invitation.id ? 'Working...' : 'Resend'}</button>
+            <button className="secondary-button danger-button" type="button" disabled={invitationAction === invitation.id} onClick={() => manageInvitation(invitation.id, 'revoke')}>Revoke</button>
+          </div>}
         </div>)}
+        </Fragment>)}
         {unitLeases.length > 5 && <p className="lease-history-note">Showing the latest 5 of {unitLeases.length} leases. Older lease records remain stored.</p>}
       </section>
     }) : <EmptyPanel label={portfolio.units.length ? 'No leases recorded yet' : 'Add a unit before recording a lease'} />}
+    {inviteMessage && <div className="success-banner" role="status">{inviteMessage}</div>}
+    {inviteLease && <div className="modal-backdrop" onClick={() => setInviteLease(null)}>
+      <form className="modal" onClick={(event) => event.stopPropagation()} onSubmit={sendInvitation}>
+        <div className="modal-header"><div><p className="eyebrow">Tenant access</p><h2>Invite tenant</h2></div><button type="button" className="icon-button" onClick={() => setInviteLease(null)}><X size={18} /></button></div>
+        <p className="login-help">Send a secure account activation link to the tenant on this lease.</p>
+        <label>Tenant email address<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} autoComplete="email" required /></label>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setInviteLease(null)}>Cancel</button><button className="primary-button" disabled={inviting}>{inviting ? 'Sending...' : 'Send invitation'}</button></div>
+      </form>
+    </div>}
     {showForm && <LeaseForm
       propertyId={propertyId}
       units={portfolio.units}

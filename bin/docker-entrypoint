@@ -1,8 +1,19 @@
-#!/bin/bash -e
+#!/bin/bash
 
-# If running the rails server then create or migrate existing database
+set -euxo pipefail
+
+echo "=== ESTATE360: Docker entrypoint started ==="
+echo "=== ESTATE360: Arguments: $* ==="
+echo "=== ESTATE360: RAILS_ENV=${RAILS_ENV:-not set} ==="
+echo "=== ESTATE360: PORT=${PORT:-not set} ==="
+
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+  echo "=== ESTATE360: Running database migrations ==="
+  echo "=== ESTATE360: Runtime Ruby version ==="
+  ruby -v
+  ./bin/rails db:migrate
+  echo "=== ESTATE360: Database migrations completed ==="
 fi
 
-exec "${@}"
+echo "=== ESTATE360: Starting Rails ==="
+exec "$@"

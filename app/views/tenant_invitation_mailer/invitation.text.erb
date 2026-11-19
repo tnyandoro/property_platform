@@ -1,0 +1,16 @@
+Hello,
+
+<%= @invitation.invited_by.first_name %> has invited you to access your tenancy information on Estate360.
+
+Property: <%= @invitation.property.name %>
+Organisation: <%= @invitation.organization.name %>
+Lease start: <%= @invitation.lease.start_date %>
+Lease end: <%= @invitation.lease.end_date || "Ongoing" %>
+
+To activate your tenant account and create your password, open this secure link:
+
+<%= @activation_url %>
+
+This invitation expires on <%= @invitation.expires_at.to_fs(:long) %>. If you were not expecting this invitation, you can ignore this email.
+
+Estate360

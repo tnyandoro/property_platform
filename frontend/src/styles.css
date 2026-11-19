@@ -83,3 +83,20 @@
 .tenant-empty.compact p { margin: 0; }
 .tenant-loading { min-height: 45vh; flex-direction: row; border: 0; font-size: 12px; }
 @media (max-width: 760px) { .tenant-header { padding: 16px 20px; }.tenant-main { padding: 34px 20px 50px; }.tenant-welcome { align-items: flex-start; flex-direction: column; }.tenant-summary { margin-bottom: 36px; }.tenant-summary > div { padding: 14px 12px; }.tenant-summary strong { font-size: 22px; }.tenant-dashboard-grid { grid-template-columns: 1fr; gap: 4px; }.tenant-facts { gap: 14px 8px; }.tenant-home-grid { grid-template-columns: 1fr; } }
+
+
+.success-banner { margin: 14px 0; padding: 12px 14px; background: #e7edd0; color: #425638; border-left: 3px solid #9eaf42; font-size: 12px; line-height: 1.5; }
+.lease-row-side .secondary-button { margin-top: 9px; padding: 8px 10px; font-size: 10px; }
+
+
+.invitation-row { display: flex; align-items: center; gap: 14px; margin: -1px 0 12px 18px; padding: 12px 14px; border: 1px solid var(--line, #e5e7eb); border-radius: 8px; font-size: 11px; }
+.invitation-row > div:first-child { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.invitation-row strong { overflow-wrap: anywhere; }
+.invitation-row span { color: var(--muted, #777); }
+.invitation-actions { display: flex; gap: 7px; }
+.invitation-actions .secondary-button { padding: 6px 9px; font-size: 10px; }
+.invitation-row .status-pending { color: #8a6414; }
+.invitation-row .status-accepted { color: #35734a; }
+.invitation-row .status-revoked, .invitation-row .status-expired { color: #8a4545; }
+.danger-button { color: #9b3d3d; }
+@media (max-width: 760px) { .invitation-row { align-items: flex-start; flex-wrap: wrap; margin-left: 0; }.invitation-actions { width: 100%; } }
