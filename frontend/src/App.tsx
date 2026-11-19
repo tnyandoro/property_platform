@@ -1,7 +1,7 @@
 import React, { Fragment } from 'react';
 import { useEffect, useState } from 'react'
 import { Building2, CalendarPlus, ChevronDown, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench, X } from 'lucide-react'
-import { api, responseError } from './api'
+import { api, apiUrl, responseError } from './api'
 import { MaintenanceWorkspace } from './MaintenanceWorkspace'
 import { TenantDashboard } from './TenantDashboard'
 
