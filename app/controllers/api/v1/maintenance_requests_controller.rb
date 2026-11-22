@@ -60,6 +60,11 @@ module Api
 
       def update
         return unless authorize_request_manager
+        if @request.status == "closed"
+          return render json: {
+            error: "Closed work orders cannot be edited."
+          }, status: :unprocessable_entity
+        end
 
         attributes = maintenance_request_params
         @request.assign_attributes(attributes.except(*MaintenanceRequestAssociationAssigner::ASSOCIATION_KEYS))

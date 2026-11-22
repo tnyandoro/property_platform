@@ -1,3 +1,4 @@
+
 require "test_helper"
 
 class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
@@ -102,6 +103,25 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("275.50"), request.actual_cost
     assert_equal @manager.id, request.verified_by_id
     assert_equal @manager.id, request.closed_by_id
+  end
+
+  test "prevents editing a closed work order" do
+    request = create_request(status: "closed", approved_cost: 300)
+    original_title = request.title
+
+    patch "#{requests_path}/#{request.id}",
+          params: {
+            maintenance_request: {
+              title: "Attempted change after closure"
+            }
+          },
+          headers: @auth_headers,
+          as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "Closed work orders cannot be edited.", JSON.parse(response.body).fetch("error")
+    assert_equal original_title, request.reload.title
+    assert_equal "closed", request.status
   end
 
   test "rejects approval, cancellation and responsibility changes without required inputs" do
