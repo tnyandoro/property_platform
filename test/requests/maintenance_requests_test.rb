@@ -180,12 +180,12 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -196,13 +196,13 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              party_id: other_tenant.id,
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -214,13 +214,13 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Tenant and lease verified.",
-           allocations: [{
+           allocations: [ {
              responsible_party: "tenant",
              allocated_amount: "100",
              currency: "ZAR",
              party_id: tenant.id,
              lease_id: lease.id
-           }]
+           } ]
          },
          headers: @auth_headers,
          as: :json
@@ -235,7 +235,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{ responsible_party: "owner", allocated_amount: "200", currency: "ZAR" }]
+           allocations: [ { responsible_party: "owner", allocated_amount: "200", currency: "ZAR" } ]
          },
          headers: @auth_headers,
          as: :json
@@ -251,7 +251,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     post action_path(request, "allocations"),
          params: {
            rationale: "Reviewed allocation.",
-           allocations: [{ responsible_party: "owner", allocated_amount: "not-an-amount", currency: "ZAR" }]
+           allocations: [ { responsible_party: "owner", allocated_amount: "not-an-amount", currency: "ZAR" } ]
          },
          headers: @auth_headers,
          as: :json
@@ -263,16 +263,15 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
   test "records quotations, invoices, and payments as separate entries" do
     request = create_request
 
-    post action_path(request, "financial_entries"),
-         params: { financial_entry: { entry_type: "quotation", amount: "20.00", currency: "ZAR", occurred_on: Date.current.to_s } },
+    post action_path(request, "quotes"),
+         params: { quote: { amount: "20.00", currency: "ZAR", occurred_on: Date.current.to_s } },
          headers: @auth_headers,
          as: :json
     assert_response :created
 
-    post action_path(request, "financial_entries"),
+    post action_path(request, "invoices"),
          params: {
-           financial_entry: {
-             entry_type: "invoice",
+           invoice: {
              amount: "20.00",
              currency: "ZAR",
              occurred_on: Date.current.to_s,
@@ -284,10 +283,9 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     assert_response :created
     invoice_id = JSON.parse(response.body).fetch("id")
 
-    post action_path(request, "financial_entries"),
+    post action_path(request, "payments"),
          params: {
-           financial_entry: {
-             entry_type: "payment",
+           payment: {
              amount: "20.00",
              currency: "ZAR",
              occurred_on: Date.current.to_s,
@@ -302,7 +300,7 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 1, request.quotes.count
     assert_equal 1, request.invoices.count
     assert_equal invoice_id, request.payments.sole.invoice_id
-    assert request.financial_entries.all? { |entry| entry.type.nil? }
+    assert_equal %w[MaintenanceInvoice MaintenancePayment MaintenanceQuote], request.financial_entries.order(:entry_type).pluck(:type)
   end
 
   test "marks a pending payment paid only through its property-scoped endpoint" do
@@ -622,9 +620,9 @@ class MaintenanceRequestsTest < ActionDispatch::IntegrationTest
       start_date: Date.current,
       end_date: 1.year.from_now.to_date,
       monthly_rent: 1000,
-      currency: "ZAR"
+      rent_currency: "ZAR"
     )
-    [lease, tenant]
+    [ lease, tenant ]
   end
 
   def requests_path

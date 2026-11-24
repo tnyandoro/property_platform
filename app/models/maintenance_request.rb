@@ -78,8 +78,12 @@ class MaintenanceRequest < ApplicationRecord
       errors.add(:room, "must belong to this property, unit and organization")
     end
 
-    [reported_by, assigned_to, approved_by, responsibility_reviewed_by, rejected_by, closed_by, verified_by].compact.each do |user|
-      errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
+    management_actors = [ assigned_to, approved_by, responsibility_reviewed_by, rejected_by, closed_by, verified_by ]
+    management_actors << reported_by unless source_type == "tenant_request"
+    management_actors.compact.each do |user|
+      next if user.member_of?(organization_id) || user.platform_administrator?
+
+      errors.add(:base, "management users must be active members of the organization")
     end
     if assigned_to && property && !property.property_assignments.where(
       user_id: assigned_to_id,
@@ -89,7 +93,7 @@ class MaintenanceRequest < ApplicationRecord
       .exists?
       errors.add(:assigned_to, "must have an active assignment to this property")
     end
-    [lease, source_inspection, source_damage_assessment, maintenance_schedule].compact.each do |record|
+    [ lease, source_inspection, source_damage_assessment, maintenance_schedule ].compact.each do |record|
       errors.add(:base, "linked records must belong to this property and organization") if record.organization_id != organization_id || record.property_id != property_id
     end
     if contractor && contractor.organization_id != organization_id
@@ -162,7 +166,8 @@ class MaintenanceRequest < ApplicationRecord
   def capture_verification_metadata
     return unless will_save_change_to_status?
 
-    actor = Current.user if Current.user&.organization_id == organization_id
+    actor = Current.user if Current.workspace == "management" &&
+      Current.organization&.id == organization_id && Current.membership&.active?
     if status == "rejected"
       self.rejected_by ||= actor
       self.rejected_at ||= Time.current if rejected_by

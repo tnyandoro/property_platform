@@ -2,6 +2,8 @@ module Api
   module V1
     module Tenant
       class DashboardController < Api::V1::ApplicationController
+        skip_before_action :require_management_workspace!
+        before_action :require_tenant_workspace!
         TENANT_STATUSES = {
           "open" => "submitted",
           "acknowledged" => "under_review",

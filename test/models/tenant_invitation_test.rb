@@ -58,7 +58,8 @@ class TenantInvitationTest < ActiveSupport::TestCase
     invitation.update!(expires_at: 1.minute.ago)
     assert_not invitation.valid_for_activation?
 
-    accepted_user = create_user(@organization, "accepted")
+    tenant_home = Organization.create!(name: "Accepted tenant home #{SecureRandom.hex(4)}")
+    accepted_user = create_user(tenant_home, "accepted", skip_initial_organization_membership: true)
     accepted_user.update!(email: invitation.target_email, email_verified_at: Time.current)
     account = PartyAccount.create!(
       organization: @organization,
@@ -118,13 +119,14 @@ class TenantInvitationTest < ActiveSupport::TestCase
     )
   end
 
-  def create_user(organization, prefix, organization_role: "member")
+  def create_user(organization, prefix, organization_role: "member", skip_initial_organization_membership: false)
     organization.users.create!(
       email: "#{prefix}-#{SecureRandom.hex(4)}@example.com",
       first_name: "Test",
       last_name: "User",
       password: "password123",
-      organization_role: organization_role
+      organization_role: organization_role,
+      skip_initial_organization_membership: skip_initial_organization_membership
     )
   end
 end

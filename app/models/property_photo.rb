@@ -25,8 +25,10 @@ class PropertyPhoto < ApplicationRecord
     if property && property.organization_id != organization_id
       errors.add(:property, "must belong to the same organization")
     end
-    [uploaded_by, published_by].compact.each do |user|
-      errors.add(:base, "users must belong to the same organization") if user.organization_id != organization_id
+    [ uploaded_by, published_by ].compact.each do |user|
+      next if user.member_of?(organization_id) || user.platform_administrator?
+
+      errors.add(:base, "users must be active members of the organization")
     end
   end
 

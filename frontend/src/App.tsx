@@ -159,7 +159,7 @@ function App() {
 function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
   const [workspace, setWorkspace] = useState<Workspace>('management')
   const [email, setEmail] = useState('admin@acme.example')
-  const [password, setPassword] = useState('password123')
+  const [password, setPassword] = useState('')
   const [organizationId, setOrganizationId] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -173,6 +173,14 @@ function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
+    const normalizedOrganizationId = organizationId.trim()
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+    if (normalizedOrganizationId && !uuidPattern.test(normalizedOrganizationId)) {
+      setError('Organization ID must be a UUID. Leave it blank unless you need to select a specific organization; do not enter the workspace name.')
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
@@ -181,7 +189,7 @@ function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
         body: JSON.stringify({
           email,
           password,
-          organization_id: organizationId.trim() || undefined,
+          ...(normalizedOrganizationId ? { organization_id: normalizedOrganizationId } : {}),
           workspace,
         }),
       })
@@ -214,7 +222,7 @@ function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
       <p className="login-help">{workspace === 'tenant' ? 'Use the tenant account linked to your lease. Enter your organization ID if your email is used by more than one organization.' : 'Use your organization account to open the portfolio.'}</p>
       <label>Email address<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required /></label>
       <label>Password<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></label>
-      <label>Organization ID <span className="optional-label">(optional if your email is unique)</span><input value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} autoComplete="off" /></label>
+      <label>Organization ID <span className="optional-label">(optional UUID; leave blank for normal sign-in)</span><input value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} autoComplete="off" placeholder="Only enter an organization UUID" /></label>
       {error && <div className="form-error" role="alert">{error}</div>}
       <button className="primary-button full" disabled={loading}>{loading ? 'Signing in...' : workspace === 'tenant' ? 'Open tenant workspace' : 'Enter workspace'} <ChevronRight size={17} /></button>
       {workspace === 'management' && <p className="demo-hint">Demo access is prefilled for local development.</p>}

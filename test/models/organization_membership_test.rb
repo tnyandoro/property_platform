@@ -1,0 +1,198 @@
+require "test_helper"
+
+class OrganizationMembershipTest < ActiveSupport::TestCase
+  test "creates an active membership for a new user in their initial organization" do
+    organization = Organization.create!(name: "Initial organization")
+    user = organization.users.create!(
+      email: "member@example.com",
+      first_name: "Mira",
+      last_name: "Member",
+      password: "password123"
+    )
+
+    membership = user.organization_memberships.sole
+    assert_equal organization, membership.organization
+    assert_equal "member", membership.role
+    assert_equal "active", membership.status
+  end
+
+  test "preserves the legacy organization role when creating the initial membership" do
+    organization = Organization.create!(name: "Administrator organization")
+    user = organization.users.create!(
+      email: "admin@example.com",
+      first_name: "Ari",
+      last_name: "Admin",
+      password: "password123",
+      organization_role: "administrator"
+    )
+
+    assert user.organization_memberships.sole.administrator?
+  end
+
+  test "allows a user to have memberships in more than one organization" do
+    first = Organization.create!(name: "First organization")
+    second = Organization.create!(name: "Second organization")
+    user = first.users.create!(
+      email: "multi@example.com",
+      first_name: "Morgan",
+      last_name: "Multi",
+      password: "password123"
+    )
+
+    membership = user.organization_memberships.create!(
+      organization: second,
+      role: "administrator",
+      status: "active"
+    )
+
+    assert_equal [ first.id, second.id ].sort, user.organization_memberships.active.pluck(:organization_id).sort
+    assert membership.administrator?
+    assert_equal first, user.reload.legacy_organization # Legacy link remains only for existing organization-created accounts.
+  end
+
+  test "prevents duplicate memberships for the same user and organization" do
+    organization = Organization.create!(name: "Unique organization")
+    user = organization.users.create!(
+      email: "unique@example.com",
+      first_name: "Uma",
+      last_name: "Unique",
+      password: "password123"
+    )
+
+    duplicate = user.organization_memberships.new(organization: organization, role: "member")
+
+    assert_not duplicate.valid?
+    assert duplicate.errors[:user_id].any?
+  end
+
+  test "rejects unsupported roles and statuses" do
+    organization = Organization.create!(name: "Validation organization")
+    user = organization.users.create!(
+      email: "validation@example.com",
+      first_name: "Val",
+      last_name: "Validation",
+      password: "password123"
+    )
+
+    membership = user.organization_memberships.new(
+      organization: Organization.create!(name: "Another validation organization"),
+      role: "superuser",
+      status: "pending"
+    )
+
+    assert_not membership.valid?
+    assert membership.errors[:role].any?
+    assert membership.errors[:status].any?
+  end
+  test "uses the target organisation membership when checking property capabilities" do
+    home = Organization.create!(name: "Home organization")
+    managed = Organization.create!(name: "Managed organization")
+    user = home.users.create!(
+      email: "manager@example.com",
+      first_name: "Manny",
+      last_name: "Manager",
+      password: "password123"
+    )
+    user.organization_memberships.create!(organization: managed, role: "member", status: "active")
+    property = managed.properties.create!(name: "Managed property", property_type: "residential")
+    property.property_assignments.create!(
+      organization: managed,
+      user: user,
+      assignment_type: "manager",
+      starts_at: Time.current,
+      capabilities: [ "invite_tenants" ]
+    )
+
+    assert user.authorized_for_property?(property, "invite_tenants")
+    assert_equal managed, user.membership_for(managed.id).organization
+  end
+
+  test "an administrator membership grants organisation-level property authority" do
+    home = Organization.create!(name: "Administrator home")
+    managed = Organization.create!(name: "Administrator managed")
+    user = home.users.create!(
+      email: "multi-admin@example.com",
+      first_name: "Ari",
+      last_name: "Admin",
+      password: "password123"
+    )
+    user.organization_memberships.create!(organization: managed, role: "administrator", status: "active")
+    property = managed.properties.create!(name: "Admin property", property_type: "residential")
+
+    assert user.authorized_for_property?(property, "invite_tenants")
+  end
+
+  test "allows a verified property owner without an active organization membership" do
+    organization = Organization.create!(name: "Owner access organization")
+    owner = organization.users.create!(
+      email: "owner-access@example.com",
+      first_name: "Owen",
+      last_name: "Owner",
+      password: "password123"
+    )
+    verifier = organization.users.create!(
+      email: "owner-verifier@example.com",
+      first_name: "Vera",
+      last_name: "Verifier",
+      password: "password123"
+    )
+    property = organization.properties.create!(name: "Owner access property", property_type: "residential")
+    party = organization.parties.create!(name: "Verified property owner", party_type: "individual")
+
+    PartyAccount.create!(
+      organization: organization,
+      user: owner,
+      party: party,
+      status: "verified",
+      verified_by: verifier,
+      verified_at: Time.current
+    )
+    PropertyOwnership.create!(
+      organization: organization,
+      property: property,
+      party: party,
+      ownership_percentage: 100,
+      start_date: Date.current,
+      verification_status: "verified",
+      verified_by: verifier,
+      verified_at: Time.current
+    )
+    owner.organization_memberships.update_all(status: "suspended")
+
+    assert_not owner.member_of?(organization)
+    assert owner.authorized_for_property?(property, "propose_lease_renewals")
+  end
+
+  test "allows a global user without a legacy organization or staff membership" do
+    user = User.create!(
+      email: "global-identity@example.com",
+      first_name: "Global",
+      last_name: "Identity",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+
+    assert_nil user.legacy_organization
+    assert_empty user.organization_memberships
+  end
+
+  test "global user can join multiple organizations without a legacy organization" do
+    first = Organization.create!(name: "Global member first #{SecureRandom.hex(4)}")
+    second = Organization.create!(name: "Global member second #{SecureRandom.hex(4)}")
+    user = User.create!(
+      email: "global-member-#{SecureRandom.hex(4)}@example.com",
+      first_name: "Global",
+      last_name: "Member",
+      password: "password123",
+      skip_initial_organization_membership: true
+    )
+
+    user.organization_memberships.create!(organization: first, role: "member", status: "active")
+    user.organization_memberships.create!(organization: second, role: "administrator", status: "active")
+
+    assert_nil user.legacy_organization
+    assert user.member_of?(first)
+    assert user.member_of?(second)
+    assert user.membership_for(second).administrator?
+  end
+end

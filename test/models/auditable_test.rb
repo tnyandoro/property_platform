@@ -15,11 +15,12 @@ class AuditableTest < ActiveSupport::TestCase
   teardown { Current.user = nil }
 
   test "creates an audit log on property create" do
+    property = nil
     assert_difference "AuditLog.count", 1 do
-      @organization.properties.create!(name: "Audited Property", property_type: "residential")
+      property = @organization.properties.create!(name: "Audited Property", property_type: "residential")
     end
 
-    log = AuditLog.last
+    log = AuditLog.for_record(property).sole
     assert_equal "create",   log.action
     assert_equal "Property", log.auditable_type
     assert_equal @user,      log.actor
@@ -31,7 +32,7 @@ class AuditableTest < ActiveSupport::TestCase
       property.update!(name: "After")
     end
 
-    log = AuditLog.last
+    log = AuditLog.for_record(property).where(action: "update").sole
     assert_equal "update",                   log.action
     assert_includes log.changes_payload["name"], "Before"
     assert_includes log.changes_payload["name"], "After"
@@ -43,7 +44,7 @@ class AuditableTest < ActiveSupport::TestCase
       property.destroy!
     end
 
-    assert_equal "destroy", AuditLog.last.action
+    assert_equal "destroy", AuditLog.for_record(property).where(action: "destroy").sole.action
   end
 
   test "creates an audit log for inspection lifecycle" do
@@ -55,7 +56,8 @@ class AuditableTest < ActiveSupport::TestCase
       )
     end
 
-    assert_equal "Inspection", AuditLog.last.auditable_type
-    assert_equal inspection.id, AuditLog.last.auditable_id
+    log = AuditLog.for_record(inspection).sole
+    assert_equal "Inspection", log.auditable_type
+    assert_equal inspection.id, log.auditable_id
   end
 end

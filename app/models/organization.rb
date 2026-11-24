@@ -1,5 +1,7 @@
 class Organization < ApplicationRecord
-  has_many :users
+  has_many :users, inverse_of: :legacy_organization
+  has_many :organization_memberships, dependent: :restrict_with_error
+  has_many :members, through: :organization_memberships, source: :user
   has_many :parties
   has_many :party_accounts, dependent: :restrict_with_error
   has_many :tenant_profiles, dependent: :restrict_with_error
