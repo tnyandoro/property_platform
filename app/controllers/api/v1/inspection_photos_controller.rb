@@ -5,12 +5,16 @@ module Api
     class InspectionPhotosController < PropertyResourcesController
       def index
         inspection = scoped_inspection
+        return head :forbidden unless InspectionPhotoPolicy.new(current_user, inspection).index?
+
         photos = inspection.inspection_photos.order(created_at: :asc)
         render json: photos.map { |photo| photo_payload(photo) }
       end
 
       def create
         inspection = scoped_inspection
+        return head :forbidden unless InspectionPhotoPolicy.new(current_user, inspection).create?
+
         return render json: { error: "Locked inspections cannot be changed" },
                       status: :unprocessable_entity if inspection.locked?
 
@@ -27,11 +31,11 @@ module Api
         )
 
         photo = inspection.inspection_photos.create!(
-          organization:      current_organization,
-          storage_key:       blob.key,
-          content_type:      blob.content_type,
-          caption:           params[:caption],
-          taken_at:          params[:taken_at],
+          organization:       current_organization,
+          storage_key:        blob.key,
+          content_type:       blob.content_type,
+          caption:            params[:caption],
+          taken_at:           params[:taken_at],
           inspection_room_id: params[:inspection_room_id],
           inspection_item_id: params[:inspection_item_id]
         )
