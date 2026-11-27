@@ -1,3 +1,5 @@
+require "uri"
+
 module Api
   module V1
     # POST /api/v1/properties/:property_id/photos
@@ -5,7 +7,18 @@ module Api
       def show
         return head :not_found if property.cover_photo_url.blank?
 
-        redirect_to property.cover_photo_url, allow_other_host: true
+        photo_uri = URI.parse(property.cover_photo_url)
+
+        unless photo_uri.is_a?(URI::HTTPS) &&
+               photo_uri.host == "res.cloudinary.com" &&
+               photo_uri.port == 443 &&
+               photo_uri.userinfo.nil?
+          return head :not_found
+        end
+
+        redirect_to photo_uri.to_s, allow_other_host: true
+      rescue URI::InvalidURIError
+        head :not_found
       end
 
       def create
