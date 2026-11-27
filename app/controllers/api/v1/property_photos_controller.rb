@@ -2,6 +2,12 @@ module Api
   module V1
     # POST /api/v1/properties/:property_id/photos
     class PropertyPhotosController < PropertyResourcesController
+      def show
+        return head :not_found if property.cover_photo_url.blank?
+
+        redirect_to property.cover_photo_url, allow_other_host: true
+      end
+
       def create
         file = params[:file]
         return render json: { error: "file param is required" },
