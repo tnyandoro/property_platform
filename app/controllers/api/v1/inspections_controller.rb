@@ -4,6 +4,8 @@ module Api
   module V1
     class InspectionsController < PropertyResourcesController
       def index
+        return head :forbidden unless InspectionPolicy.new(current_user, property).index?
+
         render json: property.inspections.map { |inspection| {
           id: inspection.id,
           inspection_type: inspection.inspection_type,
@@ -21,6 +23,8 @@ module Api
         inspection.organization = current_organization
         inspection.inspector = current_user
         inspection.status = "draft"
+
+        return head :forbidden unless InspectionPolicy.new(current_user, inspection).create?
 
         if inspection.save
           ::InspectionSnapshotBuilder.ensure!(inspection)

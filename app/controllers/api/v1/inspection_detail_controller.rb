@@ -5,6 +5,8 @@ module Api
     class InspectionDetailController < PropertyResourcesController
       def show
         inspection = property.inspections.includes(inspection_rooms: :inspection_items).find(params[:inspection_id])
+        return head :forbidden unless InspectionPolicy.new(current_user, inspection).show?
+
         ::InspectionSnapshotBuilder.ensure!(inspection) if inspection.inspection_rooms.empty?
         inspection.reload
 
@@ -25,6 +27,7 @@ module Api
 
       def update
         inspection = property.inspections.includes(inspection_rooms: :inspection_items).find(params[:inspection_id])
+        return head :forbidden unless InspectionPolicy.new(current_user, inspection).update?
         return render json: { error: "Locked inspections cannot be changed" }, status: :unprocessable_entity if inspection.locked_at.present?
 
         Inspection.transaction do

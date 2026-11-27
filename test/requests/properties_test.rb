@@ -39,6 +39,64 @@ class PropertiesTest < ActionDispatch::IntegrationTest
     assert_equal @user, property.property_assignments.last.user
   end
 
+  test "requires authentication to retrieve a property cover photo" do
+    property = assigned_property
+
+    get api_v1_photos_path(property)
+
+    assert_response :unauthorized
+  end
+
+  test "returns not found when an assigned property has no cover photo" do
+    property = assigned_property
+    authenticate_as(@user)
+
+    get api_v1_photos_path(property), headers: @auth_headers
+
+    assert_response :not_found
+  end
+
+  test "redirects to the saved cover photo URL" do
+    property = assigned_property
+    photo_url = "https://res.cloudinary.com/example/image/upload/property.jpg"
+    property.update!(cover_photo_url: photo_url)
+    authenticate_as(@user)
+
+    get api_v1_photos_path(property), headers: @auth_headers
+
+    assert_response :redirect
+    assert_redirected_to photo_url
+  end
+
+  test "rejects a cover photo URL from an untrusted host" do
+    property = assigned_property
+    property.update!(cover_photo_url: "https://evil.example/phishing")
+    authenticate_as(@user)
+
+    get api_v1_photos_path(property), headers: @auth_headers
+
+    assert_response :not_found
+  end
+
+  test "does not expose a cover photo belonging to another user's property" do
+    property = @organization.properties.create!(
+      name: "Restricted",
+      property_type: "residential",
+      cover_photo_url: "https://res.cloudinary.com/example/image/upload/private.jpg"
+    )
+    property.property_assignments.create!(
+      organization: @organization,
+      user: @other_user,
+      assignment_type: "manager",
+      starts_at: 1.hour.ago
+    )
+    authenticate_as(@user)
+
+    get api_v1_photos_path(property), headers: @auth_headers
+
+    assert_response :not_found
+  end
+
   test "uploads a cover photo for an assigned property" do
     property = assigned_property
     authenticate_as(@user)

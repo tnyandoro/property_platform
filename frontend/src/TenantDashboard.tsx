@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react'
 import { Bell, Building2, CalendarDays, FileText, LogOut, Wrench } from 'lucide-react'
 import { api } from './api'
@@ -80,6 +81,28 @@ type Props = {
   onSignOut: () => void
 }
 
+const maintenanceCategories = [
+  'painting_decorating',
+  'general_repairs',
+  'plumbing_drainage',
+  'electrical',
+  'installations_replacements',
+  'roofing_waterproofing',
+  'structural_repairs',
+  'fumigation_pest_control',
+  'tree_pruning_landscaping',
+  'cleaning_grounds_maintenance',
+  'hvac_air_conditioning',
+  'generator_pump_equipment_servicing',
+  'security_systems',
+  'compliance_safety',
+  'preventative_maintenance',
+  'improvements_upgrades',
+  'other',
+]
+
+const priorities = ['low', 'medium', 'high', 'urgent']
+
 const date = (value?: string | null) => value
   ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
   : 'Not set'
@@ -91,32 +114,105 @@ const label = (value?: string | null) => value
   ? value.replace(/_/g, ' ')
   : 'Not recorded'
 
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback
+
 export function TenantDashboard({ onSignOut }: Props) {
   const [dashboard, setDashboard] = useState<TenantDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [selectedLeaseId, setSelectedLeaseId] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('general_repairs')
+  const [priority, setPriority] = useState('medium')
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [formSuccess, setFormSuccess] = useState('')
+
   useEffect(() => {
     let active = true
+
     api<TenantDashboardData>('/tenant/dashboard')
-      .then((data) => { if (active) setDashboard(data) })
-      .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'Your dashboard could not be loaded.')
+      .then((data) => {
+        if (active) setDashboard(data)
       })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+      .catch((err: unknown) => {
+        if (active) setError(errorMessage(err, 'Your dashboard could not be loaded.'))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
+
+  const submitMaintenanceRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const leaseId = selectedLeaseId || dashboard?.tenancies[0]?.lease.id
+
+    if (!leaseId) {
+      setFormError('No active tenancy is available for this request.')
+      return
+    }
+
+    if (!description.trim()) {
+      setFormError('Please describe the maintenance issue.')
+      return
+    }
+
+    setSubmitting(true)
+    setFormError('')
+    setFormSuccess('')
+
+    try {
+      await api('/tenant/maintenance_requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          maintenance_request: {
+            lease_id: leaseId,
+            description: description.trim(),
+            category,
+            priority,
+          },
+        }),
+      })
+
+      setDescription('')
+      setCategory('general_repairs')
+      setPriority('medium')
+      setFormSuccess('Your maintenance request has been submitted.')
+
+      try {
+        const updatedDashboard = await api<TenantDashboardData>('/tenant/dashboard')
+        setDashboard(updatedDashboard)
+      } catch {
+        setFormError('Your request was submitted, but the dashboard could not refresh. Reload the page to see it.')
+      }
+    } catch (err: unknown) {
+      setFormError(errorMessage(err, 'Your maintenance request could not be submitted. Please try again.'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const openRequests = dashboard?.maintenance_requests.filter(
     (request) => !['completed', 'closed'].includes(request.status),
   ).length ?? 0
-  const unreadNotifications = dashboard?.notifications.filter((notification) => !notification.read_at).length ?? 0
+
+  const unreadNotifications = dashboard?.notifications.filter(
+    (notification) => !notification.read_at,
+  ).length ?? 0
 
   return <div className="tenant-shell">
     <header className="tenant-header">
       <div className="brand"><span className="brand-mark"><Building2 size={18} /></span><span>Atlas / tenant</span></div>
       <button className="tenant-signout" type="button" onClick={onSignOut}><LogOut size={15} /> Sign out</button>
     </header>
+
     <main className="tenant-main">
       {loading ? <div className="tenant-loading"><div className="spinner" /> Loading your dashboard</div> : error ? <div className="error-banner" role="alert">{error}</div> : dashboard && <>
         <section className="tenant-welcome">
@@ -139,6 +235,7 @@ export function TenantDashboard({ onSignOut }: Props) {
           {dashboard.tenancies.length ? <div className="tenant-home-grid">{dashboard.tenancies.map((tenancy) => {
             const unit = tenancy.premises.unit
             const documents = tenancy.lease.shared_documents
+
             return <article className="tenant-home-card" key={tenancy.lease.id}>
               <div className="tenant-home-title"><span className="tenant-home-icon"><Building2 size={21} /></span><div><h3>{tenancy.property.name}</h3><p>{[tenancy.property.address.line_1, tenancy.property.address.suburb, tenancy.property.address.city, tenancy.property.address.province].filter(Boolean).join(', ') || 'Address not provided'}</p></div></div>
               <div className="tenant-facts">
@@ -158,11 +255,73 @@ export function TenantDashboard({ onSignOut }: Props) {
         <div className="tenant-dashboard-grid">
           <section className="tenant-section">
             <div className="tenant-section-heading"><div><p className="eyebrow">Requests you submitted</p><h2>Maintenance</h2></div><Wrench size={19} /></div>
+
+            {dashboard.tenancies.length > 0 && <form className="tenant-maintenance-form" onSubmit={submitMaintenanceRequest}>
+              <h3>Report a maintenance issue</h3>
+              <p>Tell your property team what needs attention. They will review your request and provide updates here.</p>
+
+              {dashboard.tenancies.length > 1 && <label className="tenant-form-field">
+                <span>Property / tenancy</span>
+                <select
+                  value={selectedLeaseId || dashboard.tenancies[0].lease.id}
+                  onChange={(event) => setSelectedLeaseId(event.target.value)}
+                  required
+                >
+                  {dashboard.tenancies.map((tenancy) => {
+                    const unit = tenancy.premises.unit
+                    const unitName = unit.unit_number || unit.name || 'Unit'
+
+                    return <option key={tenancy.lease.id} value={tenancy.lease.id}>
+                      {tenancy.property.name} — {unitName}
+                    </option>
+                  })}
+                </select>
+              </label>}
+
+              <label className="tenant-form-field">
+                <span>Category</span>
+                <select value={category} onChange={(event) => setCategory(event.target.value)} required>
+                  {maintenanceCategories.map((value) => <option value={value} key={value}>{label(value)}</option>)}
+                </select>
+              </label>
+
+              <label className="tenant-form-field">
+                <span>Priority</span>
+                <select value={priority} onChange={(event) => setPriority(event.target.value)} required>
+                  {priorities.map((value) => <option value={value} key={value}>{label(value)}</option>)}
+                </select>
+              </label>
+
+              <label className="tenant-form-field">
+                <span>Describe the issue</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Describe what is happening, where the issue is, and when you first noticed it..."
+                  rows={5}
+                  maxLength={10000}
+                  required
+                />
+                <small>{description.length.toLocaleString()} / 10,000 characters</small>
+              </label>
+
+              {formError && <div className="error-banner" role="alert">{formError}</div>}
+              {formSuccess && <div className="success-banner" role="status">{formSuccess}</div>}
+
+              <div className="tenant-form-actions">
+                <button className="primary-button" type="submit" disabled={submitting || !description.trim()}>
+                  {submitting ? 'Submitting...' : 'Submit maintenance request'}
+                </button>
+              </div>
+            </form>}
+
             {dashboard.maintenance_requests.length ? <div className="tenant-feed">{dashboard.maintenance_requests.map((request) => <article className="tenant-feed-item" key={request.id}>
               <div className="tenant-feed-heading"><div><h3>{request.title}</h3><p>{label(request.category)} · Submitted {date(request.submitted_at)}</p></div><span className={`tenant-status status-${request.status}`}>{label(request.status)}</span></div>
               {request.description && <p className="tenant-feed-body">{request.description}</p>}
               {request.updates[0] && <div className="tenant-published-update"><strong>Latest update</strong><p>{request.updates[0].body}</p>{request.updates[0].scheduled_start_at && <small>Visit planned for {date(request.updates[0].scheduled_start_at)}. </small>}<small>{date(request.updates[0].published_at)}</small></div>}
             </article>)}</div> : <div className="tenant-empty compact"><p>You have no maintenance requests to show.</p></div>}
+
+            {!dashboard.tenancies.length && <div className="tenant-empty compact"><p>You need an active tenancy before you can submit a maintenance request.</p></div>}
           </section>
 
           <section className="tenant-section">
