@@ -9,23 +9,11 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "login", to: "sessions#create"
       delete "logout", to: "sessions#destroy"
-      resources :organization_memberships, only: %i[index create update destroy]
-      resources :tenant_invitations, only: %i[index create] do
-        member do
-          post :resend
-          post :revoke
-        end
-      end
-      get "tenant/invitations/:token", to: "tenant/invitations#show", as: :tenant_invitation_preview
-      post "tenant/invitations/:token/accept", to: "tenant/invitations#accept", as: :accept_tenant_invitation
       get "tenant/dashboard", to: "tenant/dashboard#show"
-      get "tenant/maintenance_requests", to: "tenant/maintenance_requests#index"
-      post "tenant/maintenance_requests", to: "tenant/maintenance_requests#create"
-      get "tenant/maintenance_requests/:maintenance_request_id", to: "tenant/maintenance_requests#show"
-      get "owner/dashboard", to: "owner/dashboard#show"
       get "parties", to: "parties#index"
       resources :properties
       scope "properties/:property_id" do
+        get  "photos",       to: "property_photos#show"
         post "photos",       to: "property_photos#create"
         get  "portfolio",    to: "portfolio#show"
         get  "buildings",    to: "buildings#index"
@@ -81,6 +69,6 @@ Rails.application.routes.draw do
     end
   end
 
-  # Defines the root path route (/")
+  # Defines the root path route ("/")
   # root "posts#index"
 end
