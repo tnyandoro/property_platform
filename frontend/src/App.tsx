@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2, CalendarPlus, ChevronDown, ChevronRight, CircleUserRound, FileText, LogOut, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench, X } from 'lucide-react'
-import { api, responseError } from './api'
+import { api, apiUrl, responseError } from './api'
 import { MaintenanceWorkspace } from './MaintenanceWorkspace'
 import { TenantDashboard } from './TenantDashboard'
 
@@ -245,7 +245,7 @@ function OverviewPanel({ property, portfolio, onPhotoUploaded }: { property: Pro
       const form = new FormData()
       form.append('file', file)
       const token = localStorage.getItem('property_platform_token')
-      const res = await fetch(`/api/v1/properties/${property.id}/photos`, {
+      const res = await fetch(apiUrl(`/properties/${property.id}/photos`), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
@@ -912,7 +912,7 @@ function OwnershipDocuments({ propertyId, record, onUploaded }: {
       body.append('title', title || file.name)
       body.append('document_type', documentType)
       const token = localStorage.getItem('property_platform_token')
-      const response = await fetch(`/api/v1/properties/${propertyId}/ownership/${record.id}/documents`, {
+      const response = await fetch(apiUrl(`/properties/${propertyId}/ownership/${record.id}/documents`), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
@@ -1084,7 +1084,7 @@ function LeaseForm({ propertyId, units, onClose, onSaved }: {
       body.append('lease_pdf', file)
 
       const token = localStorage.getItem('property_platform_token')
-      const response = await fetch(`/api/v1/properties/${propertyId}/leases`, {
+      const response = await fetch(apiUrl(`/properties/${propertyId}/leases`), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
@@ -1313,7 +1313,7 @@ function InspectionForm({ propertyId, inspection, onClose, onSaved }: { property
       form.append('inspection_room_id', inspectionRoomId)
       form.append('inspection_item_id', itemId)
       const token = localStorage.getItem('property_platform_token')
-      const res = await fetch(`/api/v1/properties/${propertyId}/inspections/${inspection.inspection.id}/photos`, {
+      const res = await fetch(apiUrl(`/properties/${propertyId}/inspections/${inspection.inspection.id}/photos`), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
