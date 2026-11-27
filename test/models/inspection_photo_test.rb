@@ -104,7 +104,14 @@ class InspectionPhotoTest < ActiveSupport::TestCase
   end
 
   test "rejects an item that belongs to a different selected room" do
-    other_room = build_inspection_room(@inspection)
+    other_physical_room = @unit.rooms.create!(
+      organization: @organization,
+      building: @building,
+      property: @property,
+      room_name: "Bedroom",
+      room_type: "bedroom"
+    )
+    other_room = build_inspection_room(@inspection, physical_room: other_physical_room)
 
     photo = InspectionPhoto.new(
       organization: @organization,
@@ -129,15 +136,15 @@ class InspectionPhotoTest < ActiveSupport::TestCase
     )
   end
 
-  def build_inspection_room(inspection)
+  def build_inspection_room(inspection, physical_room: @room)
     inspection.inspection_rooms.create!(
       organization: @organization,
       property_id: @property.id,
       building_id: @building.id,
       unit_id: @unit.id,
-      room_id: @room.id,
-      room_name: "Living Room",
-      room_type: "living_room"
+      room_id: physical_room.id,
+      room_name: physical_room.room_name,
+      room_type: physical_room.room_type
     )
   end
 
