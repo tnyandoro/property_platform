@@ -1428,7 +1428,7 @@ function CreateProperty({ onClose, onCreated }: { onClose: () => void; onCreated
         const form = new FormData()
         form.append('file', photoFile)
         const token = localStorage.getItem('property_platform_token')
-        const res = await fetch(`/api/v1/properties/${property.id}/photos`, {
+        const res = await fetch(apiUrl(`/properties/${property.id}/photos`), {
           method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form,
         })
         if (res.ok) {
