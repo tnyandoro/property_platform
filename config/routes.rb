@@ -13,6 +13,7 @@ Rails.application.routes.draw do
       get "parties", to: "parties#index"
       resources :properties
       scope "properties/:property_id" do
+        get  "photos",       to: "property_photos#show"
         post "photos",       to: "property_photos#create"
         get  "portfolio",    to: "portfolio#show"
         get  "buildings",    to: "buildings#index"
